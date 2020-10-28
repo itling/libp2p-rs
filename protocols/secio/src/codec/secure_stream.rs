@@ -277,9 +277,10 @@ mod tests {
     use super::{Hmac, SecureStream};
     use crate::crypto::{cipher::CipherType, new_stream, CryptoMode};
     use crate::Digest;
-    use async_std::task;
+    // use async_std::task;
     use bytes::BytesMut;
     use futures::channel;
+    use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
     use libp2prs_traits::{ReadEx, SplitEx, WriteEx};
 
     fn test_decode_encode(cipher: CipherType) {
@@ -336,63 +337,62 @@ mod tests {
 
         let (sender, receiver) = channel::oneshot::channel::<bytes::BytesMut>();
         let (addr_sender, addr_receiver) = channel::oneshot::channel::<::std::net::SocketAddr>();
-
-        task::spawn(async move {
-            let listener = async_std::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-            let listener_addr = listener.local_addr().unwrap();
-            let _res = addr_sender.send(listener_addr);
-            let (socket, _) = listener.accept().await.unwrap();
-            let nonce2 = nonce.clone();
-            let (decode_hmac, encode_hmac) = match cipher {
-                CipherType::ChaCha20Poly1305 | CipherType::Aes128Gcm | CipherType::Aes256Gcm => (None, None),
-                _ => (
-                    Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
-                    Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
-                ),
-            };
-            let (reader, writer) = socket.split();
-            let mut handle = SecureStream::new(
-                reader,
-                writer,
-                4096_usize,
-                new_stream(cipher, &cipher_key_clone[..key_size], &iv_clone, CryptoMode::Decrypt),
-                decode_hmac,
-                new_stream(cipher, &cipher_key_clone[..key_size], &iv_clone, CryptoMode::Encrypt),
-                encode_hmac,
-                nonce2,
-            );
-
-            let mut data = [0u8; 11];
-            handle.read2(&mut data).await.unwrap();
-            let _res = sender.send(BytesMut::from(&data[..]));
-        });
-
-        task::spawn(async move {
-            let listener_addr = addr_receiver.await.unwrap();
-            let stream = async_std::net::TcpStream::connect(&listener_addr).await.unwrap();
-            let (decode_hmac, encode_hmac) = match cipher {
-                CipherType::ChaCha20Poly1305 | CipherType::Aes128Gcm | CipherType::Aes256Gcm => (None, None),
-                _ => (
-                    Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
-                    Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
-                ),
-            };
-            let (reader, writer) = stream.split();
-            let mut handle = SecureStream::new(
-                reader,
-                writer,
-                4096_usize,
-                new_stream(cipher, &cipher_key_clone[..key_size], &iv, CryptoMode::Decrypt),
-                decode_hmac,
-                new_stream(cipher, &cipher_key_clone[..key_size], &iv, CryptoMode::Encrypt),
-                encode_hmac,
-                Vec::new(),
-            );
-
-            let _res = handle.write2(&data_clone[..]).await;
-        });
-
         task::block_on(async move {
+            task::spawn(async move {
+                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let listener_addr = listener.local_addr().unwrap();
+                let _res = addr_sender.send(listener_addr);
+                let (socket, _) = listener.accept().await.unwrap();
+                let nonce2 = nonce.clone();
+                let (decode_hmac, encode_hmac) = match cipher {
+                    CipherType::ChaCha20Poly1305 | CipherType::Aes128Gcm | CipherType::Aes256Gcm => (None, None),
+                    _ => (
+                        Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
+                        Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
+                    ),
+                };
+                let (reader, writer) = TokioTcpStream::new(socket).split();
+                let mut handle = SecureStream::new(
+                    reader,
+                    writer,
+                    4096_usize,
+                    new_stream(cipher, &cipher_key_clone[..key_size], &iv_clone, CryptoMode::Decrypt),
+                    decode_hmac,
+                    new_stream(cipher, &cipher_key_clone[..key_size], &iv_clone, CryptoMode::Encrypt),
+                    encode_hmac,
+                    nonce2,
+                );
+
+                let mut data = [0u8; 11];
+                handle.read2(&mut data).await.unwrap();
+                let _res = sender.send(BytesMut::from(&data[..]));
+            });
+
+            task::spawn(async move {
+                let listener_addr = addr_receiver.await.unwrap();
+                let stream = TcpStream::connect(&listener_addr).await.unwrap();
+                let (decode_hmac, encode_hmac) = match cipher {
+                    CipherType::ChaCha20Poly1305 | CipherType::Aes128Gcm | CipherType::Aes256Gcm => (None, None),
+                    _ => (
+                        Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
+                        Some(Hmac::from_key(Digest::Sha256, &_hmac_key_clone)),
+                    ),
+                };
+                let (reader, writer) = TokioTcpStream::new(stream).split();
+                let mut handle = SecureStream::new(
+                    reader,
+                    writer,
+                    4096_usize,
+                    new_stream(cipher, &cipher_key_clone[..key_size], &iv, CryptoMode::Decrypt),
+                    decode_hmac,
+                    new_stream(cipher, &cipher_key_clone[..key_size], &iv, CryptoMode::Encrypt),
+                    encode_hmac,
+                    Vec::new(),
+                );
+
+                let _res = handle.write2(&data_clone[..]).await;
+            });
+
             let received = receiver.await.unwrap();
             assert_eq!(received.to_vec(), data);
         });

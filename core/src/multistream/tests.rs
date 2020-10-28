@@ -25,7 +25,8 @@
 use super::negotiator::Negotiator;
 use super::{NegotiationError, ReadEx, Version, WriteEx};
 
-use async_std::net::{TcpListener, TcpStream};
+//use async_std::net::{TcpListener, TcpStream};
+use crate::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::channel::mpsc;
@@ -112,11 +113,11 @@ fn select_proto_basic() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_addr = listener.local_addr().unwrap();
 
-        let server = async_std::task::spawn(async move {
+        let server = task::spawn(async move {
             let connec = listener.accept().await.unwrap().0;
             let protos = vec!["/proto11", "/proto2"];
             let neg = Negotiator::new_with_protocols(protos);
-            let (proto, mut io) = neg.negotiate(connec).await.expect("negotiate");
+            let (proto, mut io) = neg.negotiate(TokioTcpStream::new(connec)).await.expect("negotiate");
             assert_eq!(proto, "/proto2");
 
             let mut out = vec![0; 32];
@@ -128,11 +129,11 @@ fn select_proto_basic() {
             io.flush().await.unwrap();
         });
 
-        let client = async_std::task::spawn(async move {
+        let client = task::spawn(async move {
             let connec = TcpStream::connect(&listener_addr).await.unwrap();
             let protos = vec!["/proto31", "/proto2"];
             let neg = Negotiator::new_with_protocols(protos);
-            let (proto, mut io) = neg.select_one(connec).await.expect("select_one");
+            let (proto, mut io) = neg.select_one(TokioTcpStream::new(connec)).await.expect("select_one");
             assert_eq!(proto, "/proto2");
 
             io.write_all(b"ping").await.unwrap();
@@ -144,11 +145,11 @@ fn select_proto_basic() {
             assert_eq!(out, b"pong");
         });
 
-        server.await;
-        client.await;
+        let _ = server.await;
+        let _ = client.await;
     }
 
-    async_std::task::block_on(run(Version::V1));
+    task::block_on(run(Version::V1));
 }
 
 #[test]
@@ -157,12 +158,12 @@ fn no_protocol_found() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_addr = listener.local_addr().unwrap();
 
-        let server = async_std::task::spawn(async move {
+        let server = task::spawn(async move {
             let connec = listener.accept().await.unwrap().0;
             let protos = vec![b"/proto1", b"/proto2"];
             let neg = Negotiator::new_with_protocols(protos);
 
-            match neg.negotiate(connec).await {
+            match neg.negotiate(TokioTcpStream::new(connec)).await {
                 Ok(_) => panic!(),
                 // We don't explicitly check for `Failed` because the client might close the connection when it
                 // realizes that we have no protocol in common.
@@ -170,22 +171,22 @@ fn no_protocol_found() {
             }
         });
 
-        let client = async_std::task::spawn(async move {
+        let client = task::spawn(async move {
             let connec = TcpStream::connect(&listener_addr).await.unwrap();
             let protos = vec![b"/proto3", b"/proto4"];
             let neg = Negotiator::new_with_protocols(protos);
-            match neg.select_one(connec).await {
+            match neg.select_one(TokioTcpStream::new(connec)).await {
                 Err(NegotiationError::Failed) => return,
                 Ok(_) => {}
                 Err(_) => panic!(),
             }
         });
 
-        server.await;
-        client.await;
+        let _ = server.await;
+        let _ = client.await;
     }
 
-    async_std::task::block_on(run(Version::V1));
+    task::block_on(run(Version::V1));
 }
 
 #[test]
@@ -194,25 +195,25 @@ fn select_proto_serial() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_addr = listener.local_addr().unwrap();
 
-        let server = async_std::task::spawn(async move {
+        let server = task::spawn(async move {
             let connec = listener.accept().await.unwrap().0;
             let protos = vec![b"/proto1", b"/proto2"];
             let neg = Negotiator::new_with_protocols(protos);
-            let (proto, _) = neg.negotiate(connec).await.expect("negotiate");
+            let (proto, _) = neg.negotiate(TokioTcpStream::new(connec)).await.expect("negotiate");
             assert_eq!(proto, b"/proto2");
         });
 
-        let client = async_std::task::spawn(async move {
+        let client = task::spawn(async move {
             let connec = TcpStream::connect(&listener_addr).await.unwrap();
             let protos = vec![b"/proto3", b"/proto2"];
             let neg = Negotiator::new_with_protocols(protos);
-            let (proto, _) = neg.select_one(connec).await.expect("select_one");
+            let (proto, _) = neg.select_one(TokioTcpStream::new(connec)).await.expect("select_one");
             assert_eq!(proto, b"/proto2");
         });
 
-        server.await;
-        client.await;
+        let _ = server.await;
+        let _ = client.await;
     }
 
-    async_std::task::block_on(run(Version::V1));
+    task::block_on(run(Version::V1));
 }

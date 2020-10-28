@@ -18,8 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
+//use async_std::task;
 use async_trait::async_trait;
+use libp2prs_core::runtime::{task, Runtime};
 use std::time::Duration;
 #[macro_use]
 extern crate lazy_static;
@@ -103,10 +104,11 @@ fn run_server() {
     log::info!("Swarm created, local-peer-id={:?}", swarm.local_peer_id());
 
     let _control = swarm.control();
-
-    swarm.listen_on(vec![listen_addr]).unwrap();
-
-    swarm.start();
+    let rt = Runtime::new().unwrap();
+    rt.spawn(async {
+        swarm.listen_on(vec![listen_addr]).unwrap();
+        swarm.start();
+    });
 
     loop {}
 }
@@ -134,9 +136,9 @@ fn run_client() {
 
     swarm.peer_addrs_add(&remote_peer_id, "/ip4/127.0.0.1/tcp/8086".parse().unwrap(), Duration::default());
 
-    swarm.start();
-
     task::block_on(async move {
+        swarm.start();
+
         control.new_connection(remote_peer_id.clone()).await.unwrap();
         let mut handles = VecDeque::default();
         for _ in 0..100u32 {
@@ -161,7 +163,7 @@ fn run_client() {
         }
 
         for handle in handles {
-            handle.await;
+            let _ = handle.await;
         }
 
         log::info!("shutdown is completed");

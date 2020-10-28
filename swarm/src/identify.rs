@@ -265,6 +265,7 @@ impl ProtocolHandler for IdentifyPushHandler {
 }
 
 #[cfg(test)]
+#[cfg(feature = "runtime-async-std")]
 mod tests {
     use super::IdentifyHandler;
     use crate::control::SwarmControlCmd;
@@ -275,6 +276,114 @@ mod tests {
     use futures::channel::mpsc;
     use futures::StreamExt;
     use libp2prs_core::identity::Keypair;
+    use libp2prs_core::runtime::task;
+    use libp2prs_core::upgrade::UpgradeInfo;
+    use libp2prs_core::{
+        multiaddr::multiaddr,
+        transport::{memory::MemoryTransport, Transport},
+    };
+    use rand::{thread_rng, Rng};
+
+    #[test]
+    fn produce_and_consume() {
+        let mem_addr = multiaddr![Memory(thread_rng().gen::<u64>())];
+        let listener_addr = mem_addr.clone();
+        let listener = MemoryTransport.listen_on(mem_addr).unwrap();
+
+        let pubkey = Keypair::generate_ed25519_fixed().public();
+        let key_cloned = pubkey.clone();
+
+        let (tx, mut rx) = mpsc::channel::<SwarmControlCmd>(0);
+
+        task::spawn(async move {
+            let socket = listener.accept().await.unwrap();
+            let socket = Substream::new_with_default(Box::new(socket));
+
+            let mut handler = IdentifyHandler::new(tx);
+            let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
+        });
+
+        task::spawn(async move {
+            let r = rx.next().await.unwrap();
+            if let SwarmControlCmd::IdentifyInfo(reply) = r {
+                // a fake IdentifyInfo
+                let info = IdentifyInfo {
+                    public_key: key_cloned,
+                    protocol_version: "".to_string(),
+                    agent_version: "abc".to_string(),
+                    listen_addrs: vec![],
+                    protocols: vec![],
+                };
+                let _ = reply.send(Ok(info));
+            }
+        });
+
+        futures::executor::block_on(async move {
+            let socket = MemoryTransport.dial(listener_addr).await.unwrap();
+            let socket = Substream::new_with_default(Box::new(socket));
+
+            let (ri, _addr) = identify::consume_message(socket).await.unwrap();
+            assert_eq!(ri.public_key, pubkey);
+        });
+    }
+
+    #[test]
+    fn produce_and_consume_push() {
+        let mem_addr = multiaddr![Memory(thread_rng().gen::<u64>())];
+        let listener_addr = mem_addr.clone();
+        let listener = MemoryTransport.listen_on(mem_addr).unwrap();
+
+        let pubkey = Keypair::generate_ed25519_fixed().public();
+        let key_cloned = pubkey.clone();
+
+        let (tx, mut rx) = mpsc::unbounded::<SwarmEvent>();
+
+        task::spawn(async move {
+            let socket = MemoryTransport.dial(listener_addr).await.unwrap();
+            let socket = Substream::new_with_default(Box::new(socket));
+
+            let info = IdentifyInfo {
+                public_key: key_cloned,
+                protocol_version: "".to_string(),
+                agent_version: "".to_string(),
+                listen_addrs: vec![],
+                protocols: vec![],
+            };
+
+            let _ = identify::produce_message(socket, info).await.unwrap();
+        });
+
+        futures::executor::block_on(async move {
+            let socket = listener.accept().await.unwrap();
+            let socket = Substream::new_with_default(Box::new(socket));
+
+            let mut handler = IdentifyPushHandler::new(tx);
+            let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
+
+            let r = rx.next().await.unwrap();
+
+            if let SwarmEvent::IdentifyResult { cid: _, result } = r {
+                assert_eq!(result.unwrap().0.public_key, pubkey);
+            } else {
+                unreachable!()
+            }
+        });
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "runtime-tokio")]
+mod tests {
+    use super::IdentifyHandler;
+    use crate::control::SwarmControlCmd;
+    use crate::identify::{IdentifyInfo, IdentifyPushHandler};
+    use crate::protocol_handler::ProtocolHandler;
+    use crate::substream::Substream;
+    use crate::{identify, SwarmEvent};
+    use futures::channel::mpsc;
+    use futures::StreamExt;
+    use libp2prs_core::identity::Keypair;
+    use libp2prs_core::runtime::task;
     use libp2prs_core::upgrade::UpgradeInfo;
     use libp2prs_core::{
         multiaddr::multiaddr,
@@ -292,31 +401,30 @@ mod tests {
         let key_cloned = pubkey.clone();
 
         let (tx, mut rx) = mpsc::channel::<SwarmControlCmd>(0);
+        task::block_on(async move {
+            task::spawn(async move {
+                let socket = listener.accept().await.unwrap();
+                let socket = Substream::new_with_default(Box::new(socket));
 
-        async_std::task::spawn(async move {
-            let socket = listener.accept().await.unwrap();
-            let socket = Substream::new_with_default(Box::new(socket));
+                let mut handler = IdentifyHandler::new(tx);
+                let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
+            });
 
-            let mut handler = IdentifyHandler::new(tx);
-            let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
-        });
+            task::spawn(async move {
+                let r = rx.next().await.unwrap();
+                if let SwarmControlCmd::IdentifyInfo(reply) = r {
+                    // a fake IdentifyInfo
+                    let info = IdentifyInfo {
+                        public_key: key_cloned,
+                        protocol_version: "".to_string(),
+                        agent_version: "abc".to_string(),
+                        listen_addrs: vec![],
+                        protocols: vec![],
+                    };
+                    let _ = reply.send(Ok(info));
+                }
+            });
 
-        async_std::task::spawn(async move {
-            let r = rx.next().await.unwrap();
-            if let SwarmControlCmd::IdentifyInfo(reply) = r {
-                // a fake IdentifyInfo
-                let info = IdentifyInfo {
-                    public_key: key_cloned,
-                    protocol_version: "".to_string(),
-                    agent_version: "abc".to_string(),
-                    listen_addrs: vec![],
-                    protocols: vec![],
-                };
-                let _ = reply.send(Ok(info));
-            }
-        });
-
-        async_std::task::block_on(async move {
             let socket = MemoryTransport.dial(listener_addr).await.unwrap();
             let socket = Substream::new_with_default(Box::new(socket));
 
@@ -335,23 +443,22 @@ mod tests {
         let key_cloned = pubkey.clone();
 
         let (tx, mut rx) = mpsc::unbounded::<SwarmEvent>();
+        task::block_on(async move {
+            task::spawn(async move {
+                let socket = MemoryTransport.dial(listener_addr).await.unwrap();
+                let socket = Substream::new_with_default(Box::new(socket));
 
-        async_std::task::spawn(async move {
-            let socket = MemoryTransport.dial(listener_addr).await.unwrap();
-            let socket = Substream::new_with_default(Box::new(socket));
+                let info = IdentifyInfo {
+                    public_key: key_cloned,
+                    protocol_version: "".to_string(),
+                    agent_version: "".to_string(),
+                    listen_addrs: vec![],
+                    protocols: vec![],
+                };
 
-            let info = IdentifyInfo {
-                public_key: key_cloned,
-                protocol_version: "".to_string(),
-                agent_version: "".to_string(),
-                listen_addrs: vec![],
-                protocols: vec![],
-            };
+                let _ = identify::produce_message(socket, info).await.unwrap();
+            });
 
-            let _ = identify::produce_message(socket, info).await.unwrap();
-        });
-
-        async_std::task::block_on(async move {
             let socket = listener.accept().await.unwrap();
             let socket = Substream::new_with_default(Box::new(socket));
 

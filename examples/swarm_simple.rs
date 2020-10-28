@@ -18,8 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
+//use async_std::task;
 use async_trait::async_trait;
+use libp2prs_core::runtime::{task, Runtime};
 use std::time::Duration;
 #[macro_use]
 extern crate lazy_static;
@@ -38,9 +39,6 @@ use libp2prs_swarm::{DummyProtocolHandler, Swarm, SwarmError};
 use libp2prs_tcp::TcpConfig;
 use libp2prs_traits::{ReadEx, WriteEx};
 use libp2prs_yamux as yamux;
-// use libp2prs_mplex as mplex;
-
-//use libp2prs_swarm::Swarm::network::NetworkConfig;
 
 fn main() {
     env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -109,10 +107,11 @@ fn run_server() {
     log::info!("Swarm created, local-peer-id={:?}", swarm.local_peer_id());
 
     let _control = swarm.control();
-
-    swarm.listen_on(vec![listen_addr]).unwrap();
-
-    swarm.start();
+    let rt = Runtime::new().unwrap();
+    rt.spawn(async move {
+        swarm.listen_on(vec![listen_addr]).unwrap();
+        swarm.start();
+    });
 
     loop {
         std::thread::sleep(std::time::Duration::from_secs(5));
@@ -141,8 +140,10 @@ fn run_client() {
 
     swarm.peer_addrs_add(&remote_peer_id, "/ip4/127.0.0.1/tcp/8086".parse().unwrap(), Duration::default());
 
-    swarm.start();
-
+    let rt = Runtime::new().unwrap();
+    rt.spawn(async {
+        swarm.start();
+    });
     task::block_on(async move {
         control.new_connection(remote_peer_id.clone()).await.unwrap();
         let mut stream = control.new_stream(remote_peer_id, vec![b"/my/1.0.0"]).await.unwrap();

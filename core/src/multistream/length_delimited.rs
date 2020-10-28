@@ -116,7 +116,8 @@ impl<R: ReadEx + WriteEx> LengthDelimited<R> {
 #[cfg(test)]
 mod tests {
     use super::LengthDelimited;
-    use async_std::net::{TcpListener, TcpStream};
+    //use async_std::net::{TcpListener, TcpStream};
+    use crate::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
     use futures::{io::Cursor, prelude::*};
     use quickcheck::*;
     use std::io::ErrorKind;
@@ -217,15 +218,15 @@ mod tests {
     #[test]
     fn writing_reading() {
         fn prop(frames: Vec<Vec<u8>>) -> TestResult {
-            async_std::task::block_on(async move {
+            task::block_on(async move {
                 let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
                 let listener_addr = listener.local_addr().unwrap();
 
                 let expected_frames = frames.clone();
-                let server = async_std::task::spawn(async move {
+                let server = task::spawn(async move {
                     let socket = listener.accept().await.unwrap().0;
 
-                    let mut framed = LengthDelimited::new(socket);
+                    let mut framed = LengthDelimited::new(TokioTcpStream::new(socket));
                     /*
                     let framed = futures::stream::try_unfold(framed, |mut f| async move {
                         f.recv_message().await.map(|buf| Some((buf, f)))
@@ -240,17 +241,17 @@ mod tests {
                     }
                 });
 
-                let client = async_std::task::spawn(async move {
+                let client = task::spawn(async move {
                     let socket = TcpStream::connect(&listener_addr).await.unwrap();
-                    let mut connec = LengthDelimited::new(socket);
+                    let mut connec = LengthDelimited::new(TokioTcpStream::new(socket));
                     for frame in frames {
                         log::info!("send message");
                         connec.send_message(From::from(frame)).await.unwrap();
                     }
                 });
 
-                server.await;
-                client.await;
+                let _ = server.await;
+                let _ = client.await;
             });
 
             TestResult::passed()

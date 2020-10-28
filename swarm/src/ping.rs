@@ -47,6 +47,7 @@ use std::io;
 use std::num::NonZeroU32;
 use std::time::{Duration, Instant};
 
+use libp2prs_core::runtime::io as ios;
 use libp2prs_core::transport::TransportError;
 use libp2prs_core::upgrade::UpgradeInfo;
 use libp2prs_traits::{ReadEx, WriteEx};
@@ -167,6 +168,7 @@ impl PingConfig {
     }
 }
 
+#[cfg(feature = "runtime-async-std")]
 pub async fn ping<T: ReadEx + WriteEx + Send + std::fmt::Debug>(mut stream: T, timeout: Duration) -> Result<Duration, TransportError> {
     let ping = async {
         let payload: [u8; PING_SIZE] = thread_rng().sample(distributions::Standard);
@@ -188,7 +190,36 @@ pub async fn ping<T: ReadEx + WriteEx + Send + std::fmt::Debug>(mut stream: T, t
     };
 
     // TODO: problematic, drop stream without closing, if it got timeout first
-    async_std::io::timeout(timeout, ping).await.map_err(|e| e.into())
+    ios::timeout(timeout, ping).await.map_err(|e| e.into())
+}
+
+#[cfg(feature = "runtime-tokio")]
+pub async fn ping<T: ReadEx + WriteEx + Send + std::fmt::Debug>(mut stream: T, timeout: Duration) -> Result<Duration, TransportError> {
+    let ping = async {
+        let payload: [u8; PING_SIZE] = thread_rng().sample(distributions::Standard);
+        log::trace!("Preparing ping payload {:?}", payload);
+
+        stream.write_all2(&payload).await?;
+        let started = Instant::now();
+
+        let mut recv_payload = [0u8; PING_SIZE];
+        stream.read_exact2(&mut recv_payload).await?;
+        stream.close2().await?;
+        if recv_payload == payload {
+            log::trace!("ping succeeded for {:?}", stream);
+            Ok(started.elapsed())
+        } else {
+            log::info!("Invalid ping payload received {:?}", payload);
+            Err(io::Error::new(io::ErrorKind::InvalidData, "Ping payload mismatch"))
+        }
+    };
+
+    // TODO: problematic, drop stream without closing, if it got timeout first
+    let r = ios::timeout(timeout, ping).await;
+    match r {
+        Ok(r) => r.map_err(|e| e.into()),
+        Err(e) => Err(TransportError::IoError(e.into())),
+    }
 }
 
 /// Protocol handler that handles pinging the remote at a regular period
@@ -245,11 +276,52 @@ impl ProtocolHandler for PingHandler {
 }
 
 #[cfg(test)]
+#[cfg(feature = "runtime-async-std")]
 mod tests {
     use super::PingHandler;
     use crate::ping::ping;
     use crate::protocol_handler::ProtocolHandler;
     use crate::substream::Substream;
+    use libp2prs_core::runtime::task;
+    use libp2prs_core::upgrade::UpgradeInfo;
+    use libp2prs_core::{
+        multiaddr::multiaddr,
+        transport::{memory::MemoryTransport, Transport},
+    };
+    use rand::{thread_rng, Rng};
+    use std::time::Duration;
+
+    #[test]
+    fn ping_pong() {
+        let mem_addr = multiaddr![Memory(thread_rng().gen::<u64>())];
+        let listener_addr = mem_addr.clone();
+        let listener = MemoryTransport.listen_on(mem_addr).unwrap();
+
+        task::spawn(async move {
+            let socket = listener.accept().await.unwrap();
+            let socket = Substream::new_with_default(Box::new(socket));
+
+            let mut handler = PingHandler;
+            let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
+        });
+
+        futures::executor::block_on(async move {
+            let socket = MemoryTransport.dial(listener_addr).await.unwrap();
+
+            let rtt = ping(socket, Duration::from_secs(3)).await.unwrap();
+            assert!(rtt > Duration::from_secs(0));
+        });
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "runtime-tokio")]
+mod tests {
+    use super::PingHandler;
+    use crate::ping::ping;
+    use crate::protocol_handler::ProtocolHandler;
+    use crate::substream::Substream;
+    use libp2prs_core::runtime::task;
     use libp2prs_core::upgrade::UpgradeInfo;
     use libp2prs_core::{
         multiaddr::multiaddr,
@@ -263,16 +335,15 @@ mod tests {
         let mem_addr = multiaddr![Memory(thread_rng().gen::<u64>())];
         let listener_addr = mem_addr.clone();
         let mut listener = MemoryTransport.listen_on(mem_addr).unwrap();
+        task::block_on(async move {
+            task::spawn(async move {
+                let socket = listener.accept().await.unwrap();
+                let socket = Substream::new_with_default(Box::new(socket));
 
-        async_std::task::spawn(async move {
-            let socket = listener.accept().await.unwrap();
-            let socket = Substream::new_with_default(Box::new(socket));
+                let mut handler = PingHandler;
+                let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
+            });
 
-            let mut handler = PingHandler;
-            let _ = handler.handle(socket, handler.protocol_info().first().unwrap()).await;
-        });
-
-        async_std::task::block_on(async move {
             let socket = MemoryTransport.dial(listener_addr).await.unwrap();
 
             let rtt = ping(socket, Duration::from_secs(3)).await.unwrap();

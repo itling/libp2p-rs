@@ -28,10 +28,14 @@
 //! `core` library. See the documentation of `core` and of libp2p in general to learn how to
 //! use the `Transport` trait.
 
-use async_std::net::{TcpListener, TcpStream};
+//use async_std::net::{TcpListener, TcpStream};
 use async_trait::async_trait;
 use futures::prelude::*;
 use futures_timer::Delay;
+#[cfg(feature = "runtime-tokio")]
+use libp2prs_core::runtime::{io as tio, TcpListener, TcpStream};
+#[cfg(feature = "runtime-async-std")]
+use libp2prs_core::runtime::{TcpListener, TcpStream};
 use libp2prs_core::transport::{ConnectionInfo, IListener, ITransport};
 use libp2prs_core::{
     multiaddr::{protocol, protocol::Protocol, Multiaddr},
@@ -199,8 +203,18 @@ impl TransportListener for TcpTransListener {
     }
 }
 /// Wraps around a `TcpStream` and adds logging for important events.
+#[cfg(feature = "runtime-async-std")]
 #[cfg_attr(docsrs, doc(cfg(feature = $feature_name)))]
 #[derive(Debug, Clone)]
+pub struct TcpTransStream {
+    inner: TcpStream,
+    la: Multiaddr,
+    ra: Multiaddr,
+}
+
+#[cfg(feature = "runtime-tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = $feature_name)))]
+#[derive(Debug)]
 pub struct TcpTransStream {
     inner: TcpStream,
     la: Multiaddr,
@@ -239,13 +253,13 @@ fn apply_config(config: &TcpConfig, socket: &TcpStream) -> Result<(), io::Error>
 
     Ok(())
 }
-
+#[cfg(feature = "runtime-async-std")]
 impl AsyncRead for TcpTransStream {
     fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context, buf: &mut [u8]) -> Poll<Result<usize, io::Error>> {
         AsyncRead::poll_read(Pin::new(&mut self.inner), cx, buf)
     }
 }
-
+#[cfg(feature = "runtime-async-std")]
 impl AsyncWrite for TcpTransStream {
     fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<Result<usize, io::Error>> {
         AsyncWrite::poll_write(Pin::new(&mut self.inner), cx, buf)
@@ -257,6 +271,43 @@ impl AsyncWrite for TcpTransStream {
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
         AsyncWrite::poll_close(Pin::new(&mut self.inner), cx)
+    }
+}
+
+#[cfg(feature = "runtime-tokio")]
+impl AsyncRead for TcpTransStream {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context, buf: &mut [u8]) -> Poll<Result<usize, io::Error>> {
+        tio::AsyncRead::poll_read(Pin::new(&mut self.inner), cx, buf)
+        // let mut bf=tio::ReadBuf::new(buf);
+        // let result=tio::AsyncRead::poll_read(Pin::new(&mut self.inner), cx, &mut bf);
+        // print!("======{:?}",result);
+        // match result{
+        //     Poll::Ready(r)=>{
+        //         match r{
+        //             Ok(_)=>{
+        //                 Poll::Ready(Ok(bf.filled().len()))
+        //             },
+        //             Err(e)=>{
+        //                 Poll::Ready(Err(e))
+        //             },
+        //         }
+        //     },
+        //     Poll::Pending=>Poll::Pending
+        // }
+    }
+}
+#[cfg(feature = "runtime-tokio")]
+impl AsyncWrite for TcpTransStream {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context, buf: &[u8]) -> Poll<Result<usize, io::Error>> {
+        tio::AsyncWrite::poll_write(Pin::new(&mut self.inner), cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
+        tio::AsyncWrite::poll_flush(Pin::new(&mut self.inner), cx)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
+        tio::AsyncWrite::poll_shutdown(Pin::new(&mut self.inner), cx)
     }
 }
 
@@ -290,10 +341,16 @@ fn ip_to_multiaddr(ip: IpAddr, port: u16) -> Multiaddr {
 #[cfg(test)]
 mod tests {
     use super::multiaddr_to_socketaddr;
-    #[cfg(feature = "async-std")]
     use super::TcpConfig;
+    use futures::{AsyncReadExt, AsyncWriteExt};
     use libp2prs_core::multiaddr::Multiaddr;
+    #[cfg(feature = "runtime-async-std")]
+    use libp2prs_core::runtime::task;
+    #[cfg(feature = "runtime-tokio")]
+    use libp2prs_core::runtime::{task, Runtime};
+    use libp2prs_core::Transport;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::time::Duration;
     #[test]
     fn multiaddr_to_tcp_conversion() {
         use std::net::Ipv6Addr;
@@ -326,18 +383,18 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "runtime-async-std")]
     fn dialer_and_listener_timeout() {
         fn test1(addr: Multiaddr) {
-            async_std::task::block_on(async move {
+            futures::executor::block_on(async move {
                 let mut timeout_listener = TcpConfig::new().timeout(Duration::from_secs(1)).listen_on(addr).unwrap();
                 assert!(timeout_listener.accept().await.is_err());
             });
         }
 
         fn test2(addr: Multiaddr) {
-            async_std::task::block_on(async move {
-                let tcp = TcpConfig::new().timeout(Duration::from_secs(1));
+            futures::executor::block_on(async move {
+                let mut tcp = TcpConfig::new().timeout(Duration::from_secs(1));
                 assert!(tcp.dial(addr.clone()).await.is_err());
             });
         }
@@ -347,13 +404,34 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "runtime-tokio")]
+    fn dialer_and_listener_timeout() {
+        fn test1(addr: Multiaddr) {
+            task::block_on(async move {
+                let mut timeout_listener = TcpConfig::new().timeout(Duration::from_secs(1)).listen_on(addr).unwrap();
+                assert!(timeout_listener.accept().await.is_err());
+            });
+        }
+
+        fn test2(addr: Multiaddr) {
+            task::block_on(async move {
+                let mut tcp = TcpConfig::new().timeout(Duration::from_secs(1));
+                assert!(tcp.dial(addr.clone()).await.is_err());
+            });
+        }
+
+        test1("/ip4/127.0.0.1/tcp/1111".parse().unwrap());
+        test2("/ip4/127.0.0.1/tcp/1111".parse().unwrap());
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-async-std")]
     fn communicating_between_dialer_and_listener() {
         fn test(addr: Multiaddr) {
             let (ready_tx, ready_rx) = futures::channel::oneshot::channel();
             let mut ready_tx = Some(ready_tx);
 
-            async_std::task::spawn(async move {
+            task::spawn(async move {
                 let mut tcp_listener = TcpConfig::new().listen_on(addr).unwrap();
 
                 ready_tx.take().unwrap().send(tcp_listener.multi_addr()).unwrap();
@@ -368,9 +446,48 @@ mod tests {
                 }
             });
 
-            async_std::task::block_on(async move {
+            futures::executor::block_on(async move {
                 let addr = ready_rx.await.unwrap();
-                let tcp = TcpConfig::new();
+                let mut tcp = TcpConfig::new();
+
+                // Obtain a future socket through dialing
+                let mut socket = tcp.dial(addr.clone()).await.unwrap();
+                socket.write_all(&[0x1, 0x2, 0x3]).await.unwrap();
+
+                let mut buf = [0u8; 3];
+                socket.read_exact(&mut buf).await.unwrap();
+                assert_eq!(buf, [4, 5, 6]);
+            });
+        }
+
+        test("/ip4/127.0.0.1/tcp/1110".parse().unwrap());
+        test("/ip6/::1/tcp/1110".parse().unwrap());
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-tokio")]
+    fn communicating_between_dialer_and_listener() {
+        env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+        fn test(addr: Multiaddr) {
+            let (ready_tx, ready_rx) = futures::channel::oneshot::channel();
+            let mut ready_tx = Some(ready_tx);
+            task::block_on(async move {
+                let _ = task::spawn(async move {
+                    let mut tcp_listener = TcpConfig::new().listen_on(addr).unwrap();
+
+                    ready_tx.take().unwrap().send(tcp_listener.multi_addr()).unwrap();
+
+                    loop {
+                        let mut socket = tcp_listener.accept().await.unwrap();
+
+                        let mut buf = [0u8; 3];
+                        socket.read_exact(&mut buf).await.unwrap();
+                        assert_eq!(buf, [1, 2, 3]);
+                        socket.write_all(&[4, 5, 6]).await.unwrap();
+                    }
+                });
+                let addr = ready_rx.await.unwrap();
+                let mut tcp = TcpConfig::new();
 
                 // Obtain a future socket through dialing
                 let mut socket = tcp.dial(addr.clone()).await.unwrap();

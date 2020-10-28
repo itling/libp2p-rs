@@ -18,10 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::{
-    net::{TcpListener, TcpStream},
-    task,
-};
+// use async_std::{
+//     net::{TcpListener, TcpStream},
+//     task,
+// };
+use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use libp2prs_mplex::{connection::Connection, error::ConnectionError};
 use libp2prs_traits::{ReadEx, WriteEx};
 use log::info;
@@ -44,7 +45,7 @@ fn run_server() {
         let listener = TcpListener::bind("127.0.0.1:8088").await.unwrap();
         while let Ok((socket, _)) = listener.accept().await {
             task::spawn(async move {
-                let muxer_conn = Connection::new(socket);
+                let muxer_conn = Connection::new(TokioTcpStream::new(socket));
                 let mut ctrl = muxer_conn.control();
 
                 task::spawn(async {
@@ -73,7 +74,7 @@ fn run_server() {
 fn run_client() {
     task::block_on(async {
         let socket = TcpStream::connect("127.0.0.1:8088").await.unwrap();
-        let muxer_conn = Connection::new(socket);
+        let muxer_conn = Connection::new(TokioTcpStream::new(socket));
 
         let mut ctrl = muxer_conn.control();
 
@@ -85,7 +86,7 @@ fn run_client() {
 
         let mut handles = VecDeque::new();
         let data = Arc::new(vec![0x42; 100 * 1024]);
-        for _ in 0..100 {
+        for _ in 0..100u32 {
             let mut stream = ctrl.clone().open_stream().await.unwrap();
             let data = data.clone();
             info!("C: opened new stream {}", stream.id());
@@ -105,12 +106,12 @@ fn run_client() {
         }
 
         for handle in handles {
-            handle.await;
+            let _ = handle.await;
         }
 
         ctrl.close().await.expect("close connection");
 
-        loop_handle.await;
+        let _ = loop_handle.await;
 
         info!("shutdown is completed");
     });

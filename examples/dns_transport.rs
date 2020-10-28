@@ -18,7 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
+//use async_std::task;
+use libp2prs_core::runtime::task;
 use log::{error, info};
 
 use libp2prs_core::transport::upgrade::TransportUpgrade;
@@ -103,7 +104,7 @@ fn run_client() {
         }
 
         let mut stream = stream_muxer.open_stream().await.unwrap();
-        task::spawn(async move {
+        let _ = task::spawn(async move {
             info!("opened new stream {:?}", stream);
             let data = b"hello world";
 

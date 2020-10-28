@@ -91,13 +91,14 @@ where
 mod tests {
     use super::*;
     //use crate::muxing::StreamMuxer;
+    use crate::runtime::task;
     use crate::upgrade::dummy::DummyUpgrader;
 
     #[test]
     fn verify_basic() {
         let m = Selector::new(DummyUpgrader::new(), DummyUpgrader::new());
 
-        async_std::task::block_on(async move {
+        task::block_on(async move {
             let output = m.upgrade_outbound(100u32, EitherName::A(b"")).await.unwrap();
 
             let mut _o = match output {

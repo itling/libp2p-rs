@@ -20,3 +20,8 @@ async-trait = "0.1"
 libp2prs-traits = { path = "../../traits", version = "0.1.0", package = "libp2prs-traits" }
 libp2prs-tcp = { path = "../tcp", version = "0.1.0", package = "libp2prs-tcp" }
 libp2prs-multiaddr = { path = "../../multiaddr", version = "0.1.0" , package = "libp2prs-multiaddr"}
+
+[features]
+default = ["runtime-tokio"]
+runtime-async-std = ["libp2prs-core/runtime-async-std" ]
+runtime-tokio = ["libp2prs-core/runtime-tokio"]

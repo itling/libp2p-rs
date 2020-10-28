@@ -119,12 +119,16 @@ impl Transport for WsConfig {
 #[cfg(test)]
 mod tests {
     use super::WsConfig;
-    use async_std::task;
+    #[cfg(feature = "runtime-async-std")]
+    use libp2prs_core::runtime::task;
+    #[cfg(feature = "runtime-tokio")]
+    use libp2prs_core::runtime::task;
     use libp2prs_core::Multiaddr;
     use libp2prs_core::Transport;
     use libp2prs_traits::{ReadEx, WriteEx};
 
     #[test]
+    #[cfg(feature = "runtime-async-std")]
     fn dialer_connects_to_listener_ipv4() {
         //env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
         let listen_addr = "/ip4/127.0.0.1/tcp/38099/ws".parse().unwrap();
@@ -142,6 +146,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "runtime-async-std")]
     fn dialer_connects_to_listener_dns() {
         //env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
         let listen_addr = "/ip4/127.0.0.1/tcp/38100/ws".parse().unwrap();
@@ -159,6 +164,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "runtime-async-std")]
     fn dialer_connects_to_listener_ipv6() {
         //env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
         let listen_addr = "/ip6/::1/tcp/38101/ws".parse().unwrap();
@@ -172,6 +178,60 @@ mod tests {
         futures::executor::block_on(async {
             s.await;
             c.await;
+        });
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-tokio")]
+    fn dialer_connects_to_listener_ipv4() {
+        //env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+        let listen_addr = "/ip4/127.0.0.1/tcp/38099/ws".parse().unwrap();
+        let dial_addr = "/ip4/127.0.0.1/tcp/38099/ws".parse().unwrap();
+        task::block_on(async {
+            let s = task::spawn(async {
+                server(listen_addr).await;
+            });
+            let c = task::spawn(async {
+                client(dial_addr, false).await;
+            });
+            let _ = s.await;
+            let _ = c.await;
+        });
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-tokio")]
+    fn dialer_connects_to_listener_dns() {
+        //env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+        let listen_addr = "/ip4/127.0.0.1/tcp/38100/ws".parse().unwrap();
+        let dial_addr = "/dns4/localhost/tcp/38100/ws".parse().unwrap();
+        task::block_on(async {
+            let s = task::spawn(async {
+                server(listen_addr).await;
+            });
+            let c = task::spawn(async {
+                client(dial_addr, true).await;
+            });
+            let _ = s.await;
+            let _ = c.await;
+        });
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-tokio")]
+    fn dialer_connects_to_listener_ipv6() {
+        //env_logger::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+        let listen_addr = "/ip6/::1/tcp/38101/ws".parse().unwrap();
+        let dial_addr = "/ip6/::1/tcp/38101/ws".parse().unwrap();
+        task::block_on(async {
+            let s = task::spawn(async {
+                server(listen_addr).await;
+            });
+            let c = task::spawn(async {
+                client(dial_addr, false).await;
+            });
+            let _ = s.await;
+            let _ = c.await;
         });
     }
 
@@ -191,10 +251,7 @@ mod tests {
         } else {
             ws_config = WsConfig::new();
         }
-        let conn = ws_config
-            .outbound_timeout(std::time::Duration::new(5, 0))
-            .dial(dial_addr.clone())
-            .await;
+        let conn = ws_config.timeout(std::time::Duration::new(5, 0)).dial(dial_addr.clone()).await;
         assert_eq!(true, conn.is_ok());
         let mut conn = conn.expect("");
         let data = vec![1_u8, 23, 5];

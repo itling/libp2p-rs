@@ -24,7 +24,6 @@ libp2prs-traits = { path = "../../traits", version = "0.1.0", package = "libp2pr
 x25519-dalek = "0.6.0"
 zeroize = "1"
 async-trait = "0.1"
-async-std = "1.6"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 snow = { version = "0.7.1", features = ["ring-resolver"], default-features = false }
@@ -36,6 +35,7 @@ snow = { version = "0.7.1", features = ["default-resolver"], default-features = 
 env_logger = "0.7.1"
 quickcheck = "0.9.0"
 sodiumoxide = "0.2.5"
+async-std = "1.6"
 
 [build-dependencies]
 prost-build = "0.6"

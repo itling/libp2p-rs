@@ -185,13 +185,79 @@ impl error::Error for DnsErr {
 #[cfg(test)]
 mod tests {
     use super::DnsConfig;
-    use async_std::task;
+    #[cfg(feature = "runtime-async-std")]
+    use libp2prs_core::runtime::task;
+    #[cfg(feature = "runtime-tokio")]
+    use libp2prs_core::runtime::task;
     use libp2prs_core::Transport;
     use libp2prs_multiaddr::Multiaddr;
     use libp2prs_tcp::TcpConfig;
     use libp2prs_traits::{ReadEx, WriteEx};
 
     #[test]
+    #[cfg(feature = "runtime-async-std")]
+    fn basic_resolve_v4() {
+        task::block_on(async move {
+            let listen_addr: Multiaddr = "/ip4/127.0.0.1/tcp/8384".parse().unwrap();
+            let addr: Multiaddr = "/dns4/localhost/tcp/8384".parse().unwrap();
+            let mut transport = DnsConfig::new(TcpConfig::default());
+            let mut client = transport.clone();
+
+            let msg = b"Hello World";
+
+            let handle = task::spawn(async move {
+                let listener = transport.listen_on(listen_addr).unwrap();
+                let mut conn = listener.accept().await.unwrap();
+
+                let mut buf = vec![0; msg.len()];
+                conn.read_exact2(&mut buf).await.expect("server read exact");
+
+                assert_eq!(&msg[..], &buf[..]);
+
+                conn.close2().await.expect("server close connection");
+            });
+
+            let mut conn = client.dial(addr).await.expect("client dial");
+            conn.write_all2(&msg[..]).await.expect("client write all");
+            conn.close2().await.expect("client close connection");
+
+            let _ = handle.await;
+        });
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-async-std")]
+    fn basic_resolve_v6() {
+        task::block_on(async move {
+            let listen_addr: Multiaddr = "/ip6/::1/tcp/8384".parse().unwrap();
+            let addr: Multiaddr = "/dns6/localhost/tcp/8384".parse().unwrap();
+            let mut transport = DnsConfig::new(TcpConfig::default());
+            let mut client = transport.clone();
+
+            let msg = b"Hello World";
+
+            let handle = task::spawn(async move {
+                let listener = transport.listen_on(listen_addr).expect("S listen");
+                let mut conn = listener.accept().await.unwrap();
+
+                let mut buf = vec![0; msg.len()];
+                conn.read_exact2(&mut buf).await.expect("S read exact");
+
+                assert_eq!(&msg[..], &buf[..]);
+
+                conn.close2().await.expect("S close connection");
+            });
+
+            let mut conn = client.dial(addr).await.expect("C dial");
+            conn.write_all2(&msg[..]).await.expect("C write all");
+            conn.close2().await.expect("C close connection");
+
+            handle.await;
+        });
+    }
+
+    #[test]
+    #[cfg(feature = "runtime-tokio")]
     fn basic_resolve_v4() {
         task::block_on(async move {
             let listen_addr: Multiaddr = "/ip4/127.0.0.1/tcp/8384".parse().unwrap();
@@ -217,11 +283,12 @@ mod tests {
             conn.write_all2(&msg[..]).await.expect("client write all");
             conn.close2().await.expect("client close connection");
 
-            handle.await;
+            let _ = handle.await;
         });
     }
 
     #[test]
+    #[cfg(feature = "runtime-tokio")]
     fn basic_resolve_v6() {
         task::block_on(async move {
             let listen_addr: Multiaddr = "/ip6/::1/tcp/8384".parse().unwrap();
@@ -247,7 +314,7 @@ mod tests {
             conn.write_all2(&msg[..]).await.expect("C write all");
             conn.close2().await.expect("C close connection");
 
-            handle.await;
+            let _ = handle.await;
         });
     }
 }

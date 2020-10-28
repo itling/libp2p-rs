@@ -18,10 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
+//use async_std::task;
 use futures::channel::oneshot;
 use futures::io::Error;
 use futures::{channel::mpsc, SinkExt, StreamExt};
+use libp2prs_core::runtime::task;
 use libp2prs_traits::{copy, ReadEx, SplitEx, WriteEx};
 use libp2prs_yamux::{
     connection::{stream::Stream as yamux_stream, Connection, Mode},
@@ -72,12 +73,12 @@ fn prop_send_data_small() {
             }
             sa.close2().await.expect("B close stream");
 
-            stream_handle_b.await;
+            let _ = stream_handle_b.await;
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
 
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -126,12 +127,12 @@ fn prop_send_data_large() {
             }
             sa.close2().await.expect("B close stream");
 
-            stream_handle_b.await;
+            let _ = stream_handle_b.await;
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
 
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -195,7 +196,7 @@ fn prop_p2p() {
                 });
                 let sb = mpb_ctrl1.open_stream().await.expect("B accept stream");
                 send_recv(sb).await.expect("B send recv");
-                handle.await;
+                let _ = handle.await;
             });
 
             let mut mpa_ctrl1 = mpa_ctrl.clone();
@@ -208,17 +209,17 @@ fn prop_p2p() {
 
                 let sa = mpa_ctrl1.open_stream().await.expect("open stream");
                 send_recv(sa).await.expect("A send recv");
-                handle.await;
+                let _ = handle.await;
             });
 
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             TestResult::passed()
         })
@@ -265,7 +266,7 @@ fn prop_accept() {
                 assert_eq!(sb.id(), 1);
                 sb.close2().await.expect("B close stream");
 
-                handle.await;
+                let _ = handle.await;
             });
 
             // A act as server
@@ -281,17 +282,17 @@ fn prop_accept() {
                 let mut sa = mpa_ctrl1.open_stream().await.expect("open stream");
                 assert_eq!(sa.id(), 2);
                 sa.close2().await.expect("B close stream");
-                handle.await;
+                let _ = handle.await;
             });
 
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             TestResult::passed()
         })
@@ -360,11 +361,11 @@ fn prop_echo() {
             send_recv(sa).await.expect("A send recv");
 
             // close connection A and B
-            handle_b.await;
+            let _ = handle_b.await;
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             TestResult::passed()
         })
@@ -415,7 +416,7 @@ fn prop_concurrent() {
                 }
 
                 for handle in handles {
-                    handle.await;
+                    let _ = handle.await;
                 }
             });
 
@@ -437,14 +438,14 @@ fn prop_concurrent() {
             }
 
             for handle in handles {
-                handle.await;
+                let _ = handle.await;
             }
 
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
-            handle_b.await;
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             TestResult::passed()
         })
@@ -506,11 +507,11 @@ fn prop_half_close() {
             }
 
             // close connection A and B
-            handle_b.await;
+            let _ = handle_b.await;
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             TestResult::passed()
         })
@@ -580,8 +581,8 @@ fn prop_half_close2() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -652,11 +653,11 @@ fn prop_lazy_open() {
             send_recv(sa).await.expect("A send recv");
 
             // close connection A and B
-            stream_handle_b.await;
+            let _ = stream_handle_b.await;
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -723,11 +724,11 @@ fn prop_cannot_read_after_close() {
             }
 
             // close connection A and B
-            stream_handle_b.await;
+            let _ = stream_handle_b.await;
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -768,8 +769,8 @@ fn prop_client_client() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -810,8 +811,8 @@ fn prop_server_server() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -858,8 +859,8 @@ fn prop_close_before_ack() {
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
 
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -902,8 +903,8 @@ fn prop_stream_reset_after_conn_close() {
 
             // close connection A and B
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -948,8 +949,8 @@ fn prop_stream_close_after_conn_close() {
 
             // close connection A and B
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -994,8 +995,8 @@ fn prop_stream_write_after_conn_close() {
 
             // close connection A and B
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1041,8 +1042,8 @@ fn prop_stream_read_after_conn_close() {
 
             // close connection A and B
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1079,7 +1080,7 @@ fn prop_goaway() {
 
             // new stream
             let mut remote_goaway = false;
-            for _ in 0..100 {
+            for _ in 0..100u32 {
                 if let Ok(mut sb) = mpb_ctrl.clone().open_stream().await {
                     let _ = sb.close2().await;
                 } else {
@@ -1090,8 +1091,8 @@ fn prop_goaway() {
 
             // close connection A and B
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             if remote_goaway {
                 TestResult::passed()
@@ -1146,8 +1147,8 @@ fn prop_max_streams() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             if max_stream_err {
                 TestResult::passed()
@@ -1194,8 +1195,8 @@ fn prop_stream_reset_write() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             if err {
                 TestResult::failed()
@@ -1259,11 +1260,11 @@ fn prop_stream_reset_read() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("A close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             let result = futures::future::join(handle_a, handle_b).await;
-            if result.0.is_failure() || result.1.is_failure() {
+            if result.0.unwrap().is_failure() || result.1.unwrap().is_failure() {
                 TestResult::failed()
             } else {
                 TestResult::passed()
@@ -1301,7 +1302,7 @@ fn prop_accept_stream_after_close_conn() {
             mpa_ctrl.clone().open_stream().await.expect("client open stream");
 
             let mut mpb_ctrl1 = mpb_ctrl.clone();
-            task::spawn(async move {
+            let _ = task::spawn(async move {
                 while let Ok(_stream) = mpb_ctrl1.clone().accept_stream().await {
                     mpb_ctrl1.close().await.expect("A close connection");
                     task::sleep(Duration::from_secs(1)).await;
@@ -1311,8 +1312,8 @@ fn prop_accept_stream_after_close_conn() {
 
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
-            loop_handle_a.await;
-            loop_handle_b.await;
+            let _ = loop_handle_a.await;
+            let _ = loop_handle_b.await;
 
             TestResult::passed()
         })
@@ -1353,8 +1354,8 @@ fn prop_fuzz_close_connection() {
             }
 
             mpb_ctrl.close().await.expect("A close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1395,8 +1396,8 @@ fn prop_closing() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("A close connection");
-            let na = handle_a.await;
-            let nb = handle_b.await;
+            let na = handle_a.await.unwrap();
+            let nb = handle_b.await.unwrap();
 
             TestResult::from_bool(na == 0 && nb == 0)
         })
@@ -1455,8 +1456,8 @@ fn prop_reset() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1509,8 +1510,8 @@ fn prop_reset_after_eof() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("A close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1560,8 +1561,8 @@ fn prop_open_after_close() {
             }
 
             mpb_ctrl.close().await.expect("A close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1607,8 +1608,8 @@ fn prop_read_after_close() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1666,8 +1667,8 @@ fn prop_read_after_close2() {
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("A close connection");
 
-            handle_a.await;
-            handle_b.await;
+            let _ = handle_a.await;
+            let _ = handle_b.await;
 
             TestResult::passed()
         })
@@ -1707,7 +1708,7 @@ fn prop_fuzz_close_stream() {
             let ctrl = mpa_ctrl.clone();
             task::spawn(async move {
                 let mut handles = VecDeque::new();
-                for _ in 0..100 {
+                for _ in 0..100u32 {
                     let sa = ctrl.clone().open_stream().await.expect("client open stream");
 
                     for _ in 0..2 {
@@ -1720,14 +1721,14 @@ fn prop_fuzz_close_stream() {
                 }
 
                 for handle in handles {
-                    handle.await;
+                    let _ = handle.await;
                 }
 
                 let _ = tx.send(());
             });
 
             let mut streams = VecDeque::new();
-            for _ in 0..100 {
+            for _ in 0..100u32 {
                 let sb = mpb_ctrl.clone().accept_stream().await.expect("B accept stream");
                 streams.push_back(sb);
             }
@@ -1741,8 +1742,8 @@ fn prop_fuzz_close_stream() {
             // close connection A and B
             mpa_ctrl.close().await.expect("A close connection");
             mpb_ctrl.close().await.expect("B close connection");
-            let na = handle_a.await;
-            let nb = handle_b.await;
+            let na = handle_a.await.unwrap();
+            let nb = handle_b.await.unwrap();
 
             TestResult::from_bool(na == 0 && nb == 0)
         })

@@ -18,8 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
+//use async_std::task;
 use async_trait::async_trait;
+use libp2prs_core::runtime::{task, Runtime};
 use std::time::Duration;
 #[macro_use]
 extern crate lazy_static;
@@ -202,9 +203,11 @@ fn run_server() -> io::Result<()> {
 
     let _control = swarm.control();
 
-    swarm.listen_on(vec![listen_addr]).unwrap();
-
-    swarm.start();
+    let rt = Runtime::new().unwrap();
+    rt.spawn(async {
+        swarm.listen_on(vec![listen_addr]).unwrap();
+        swarm.start();
+    });
 
     loop {}
 }
@@ -235,9 +238,9 @@ fn run_client() -> io::Result<()> {
 
     swarm.peer_addrs_add(&remote_peer_id, addr, Duration::default());
 
-    swarm.start();
-
     task::block_on(async move {
+        swarm.start();
+
         control.new_connection(remote_peer_id.clone()).await.unwrap();
         let mut stream = control.new_stream(remote_peer_id, vec![b"/my/1.0.0"]).await.unwrap();
         log::info!("stream {:?} opened, writing something...", stream);

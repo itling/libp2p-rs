@@ -253,9 +253,10 @@ mod tests {
     use super::stretch_key;
     use crate::{codec::Hmac, Config, Digest};
 
-    use async_std::task;
+    // use async_std::task;
     use bytes::BytesMut;
     use futures::channel;
+    use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
     //use futures::prelude::*;
     use libp2prs_core::identity::Keypair;
     use libp2prs_traits::{ReadEx, WriteEx};
@@ -263,29 +264,27 @@ mod tests {
     fn handshake_with_self_success(config_1: Config, config_2: Config, data: &'static [u8]) {
         let (sender, receiver) = channel::oneshot::channel::<bytes::BytesMut>();
         let (addr_sender, addr_receiver) = channel::oneshot::channel::<::std::net::SocketAddr>();
-
-        task::spawn(async move {
-            let listener = async_std::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-            let listener_addr = listener.local_addr().unwrap();
-            let _res = addr_sender.send(listener_addr);
-            let (connect, _) = listener.accept().await.unwrap();
-            let (mut handle, _, _) = config_1.handshake(connect).await.unwrap();
-            let mut data = [0u8; 11];
-            handle.read2(&mut data).await.unwrap();
-            handle.write2(&data).await.unwrap();
-        });
-
-        task::spawn(async move {
-            let listener_addr = addr_receiver.await.unwrap();
-            let connect = async_std::net::TcpStream::connect(&listener_addr).await.unwrap();
-            let (mut handle, _, _) = config_2.handshake(connect).await.unwrap();
-            handle.write2(data).await.unwrap();
-            let mut data = [0u8; 11];
-            handle.read2(&mut data).await.unwrap();
-            let _res = sender.send(BytesMut::from(&data[..]));
-        });
-
         task::block_on(async move {
+            task::spawn(async move {
+                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let listener_addr = listener.local_addr().unwrap();
+                let _res = addr_sender.send(listener_addr);
+                let (connect, _) = listener.accept().await.unwrap();
+                let (mut handle, _, _) = config_1.handshake(TokioTcpStream::new(connect)).await.unwrap();
+                let mut data = [0u8; 11];
+                handle.read2(&mut data).await.unwrap();
+                handle.write2(&data).await.unwrap();
+            });
+
+            task::spawn(async move {
+                let listener_addr = addr_receiver.await.unwrap();
+                let connect = TcpStream::connect(&listener_addr).await.unwrap();
+                let (mut handle, _, _) = config_2.handshake(TokioTcpStream::new(connect)).await.unwrap();
+                handle.write2(data).await.unwrap();
+                let mut data = [0u8; 11];
+                handle.read2(&mut data).await.unwrap();
+                let _res = sender.send(BytesMut::from(&data[..]));
+            });
             let received = receiver.await.unwrap();
             assert_eq!(received.to_vec(), data);
         });

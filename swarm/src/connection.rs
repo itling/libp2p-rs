@@ -35,12 +35,10 @@ use std::{error::Error, fmt};
 use futures::channel::mpsc;
 use futures::prelude::*;
 
-use async_std::task;
-use async_std::task::JoinHandle;
-
 use libp2prs_core::identity::Keypair;
 use libp2prs_core::multistream::Negotiator;
 use libp2prs_core::muxing::IStreamMuxer;
+use libp2prs_core::runtime::task::{self, JoinHandle};
 use libp2prs_core::transport::TransportError;
 use libp2prs_core::upgrade::ProtocolName;
 use libp2prs_core::PublicKey;
@@ -204,7 +202,7 @@ impl Connection {
     pub(crate) async fn wait(&mut self) -> Result<(), SwarmError> {
         // wait for accept-task and bg-task to exit
         if let Some(h) = self.handle.take() {
-            h.await;
+            let _ = h.await;
         }
         Ok(())
     }
@@ -331,12 +329,21 @@ impl Connection {
     }
 
     /// Stops the Ping service on this connection
+    #[cfg(feature = "runtime-tokio")]
+    pub(crate) async fn stop_ping(&mut self) {
+        if let Some(_h) = self.ping_handle.take() {
+            log::debug!("stopping Ping service...");
+            self.ping_running.store(false, Ordering::Relaxed);
+            //h.abort();
+        }
+    }
+
+    #[cfg(feature = "runtime-async-std")]
     pub(crate) async fn stop_ping(&mut self) {
         if let Some(h) = self.ping_handle.take() {
             log::debug!("stopping Ping service...");
             self.ping_running.store(false, Ordering::Relaxed);
-            h.await;
-            //h.cancel().await;
+            h.cancel().await;
         }
     }
 
@@ -375,6 +382,15 @@ impl Connection {
         self.identify_handle = Some(handle);
     }
 
+    #[cfg(feature = "runtime-tokio")]
+    pub(crate) async fn stop_identify(&mut self) {
+        if let Some(_h) = self.identify_handle.take() {
+            log::debug!("stopping Identify service...");
+            //h.abort();
+        }
+    }
+
+    #[cfg(feature = "runtime-async-std")]
     pub(crate) async fn stop_identify(&mut self) {
         if let Some(h) = self.identify_handle.take() {
             log::debug!("stopping Identify service...");
@@ -420,10 +436,20 @@ impl Connection {
 
         self.identify_push_handle = Some(handle);
     }
+
+    #[cfg(feature = "runtime-async-std")]
     pub(crate) async fn stop_identify_push(&mut self) {
         if let Some(h) = self.identify_push_handle.take() {
             log::debug!("stopping Identify Push service...");
             h.cancel().await;
+        }
+    }
+
+    #[cfg(feature = "runtime-tokio")]
+    pub(crate) async fn stop_identify_push(&mut self) {
+        if let Some(_h) = self.identify_push_handle.take() {
+            log::debug!("stopping Identify Push service...");
+            //h.abort();
         }
     }
 

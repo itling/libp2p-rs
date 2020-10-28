@@ -114,7 +114,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use async_std::task;
+    use crate::runtime::task;
     use async_trait::async_trait;
 
     use super::super::Memory;
@@ -185,8 +185,8 @@ mod tests {
                 assert_eq!(x, "/proto1 client handler");
             });
 
-            server.await;
-            client.await;
+            let _ = server.await;
+            let _ = client.await;
         });
     }
 }

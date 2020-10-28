@@ -18,10 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::{
-    net::{TcpListener, TcpStream},
-    task,
-};
+// use async_std::{
+//     net::{TcpListener, TcpStream},
+//     task,
+// };
+use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use libp2prs_mplex::connection::Connection;
 use libp2prs_traits::{copy, ReadEx, WriteEx};
 use log::info;
@@ -43,7 +44,7 @@ fn run_server() {
         let listener = TcpListener::bind("127.0.0.1:8088").await.unwrap();
         while let Ok((socket, _)) = listener.accept().await {
             task::spawn(async move {
-                let muxer_conn = Connection::new(socket);
+                let muxer_conn = Connection::new(TokioTcpStream::new(socket));
                 let mut ctrl = muxer_conn.control();
 
                 task::spawn(async {
@@ -68,7 +69,7 @@ fn run_server() {
 fn run_client() {
     task::block_on(async {
         let socket = TcpStream::connect("127.0.0.1:8088").await.unwrap();
-        let muxer_conn = Connection::new(socket);
+        let muxer_conn = Connection::new(TokioTcpStream::new(socket));
 
         let mut ctrl = muxer_conn.control();
 
@@ -102,12 +103,12 @@ fn run_client() {
         }
 
         while let Some(handle) = handles.pop_front() {
-            handle.await;
+            let _ = handle.await;
         }
 
         ctrl.close().await.expect("close connection");
 
-        loop_handle.await;
+        let _ = loop_handle.await;
 
         info!("shutdown is completed");
     });

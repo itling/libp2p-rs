@@ -18,9 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
-
+//use async_std::task;
 use libp2prs_core::identity::Keypair;
+use libp2prs_core::runtime::task;
 use libp2prs_core::transport::memory::MemoryTransport;
 use libp2prs_core::transport::upgrade::TransportUpgrade;
 use libp2prs_core::transport::TransportError;
@@ -38,54 +38,53 @@ fn main() {
     let t1_addr: Multiaddr = format!("/memory/{}", rand_port).parse().unwrap();
 
     let listen_addr = t1_addr.clone();
-
-    task::spawn(async move {
-        log::info!("starting echo server...");
-
-        let sec = secio::Config::new(Keypair::generate_secp256k1());
-        //let sec = DummyUpgrader::new();
-        let mux = Selector::new(yamux::Config::new(), Selector::new(yamux::Config::new(), yamux::Config::new()));
-        let mut t1 = TransportUpgrade::new(MemoryTransport::default(), mux, sec);
-        let mut listener = t1.listen_on(listen_addr).unwrap();
-
-        loop {
-            let mut stream_muxer = listener.accept().await.unwrap();
-
-            log::info!("server accept a new connection: {:?}", stream_muxer);
-            if let Some(task) = stream_muxer.task() {
-                task::spawn(task);
-            }
-
-            // spawn a task for handling this connection/stream-muxer
-            task::spawn(async move {
-                loop {
-                    if let Ok(stream) = stream_muxer.accept_stream().await {
-                        log::info!("server accepted a new substream {:?}", stream);
-                        let mut stream_r = stream.clone();
-                        let mut stream_w = stream.clone();
-                        task::spawn(async move {
-                            let mut buf = [0; 4096];
-                            let n = stream_r.read2(&mut buf).await.unwrap();
-                            let _ = stream_w.write_all2(&buf[0..n]).await;
-                            Ok::<(), std::io::Error>(())
-                        });
-                    } else {
-                        log::warn!("stream_muxer {:?} closed", stream_muxer);
-                        break;
-                    }
-                }
-            });
-        }
-    });
-
-    // Setup dialer.
     task::block_on(async {
+        task::spawn(async move {
+            log::info!("starting echo server...");
+
+            let sec = secio::Config::new(Keypair::generate_secp256k1());
+            //let sec = DummyUpgrader::new();
+            let mux = Selector::new(yamux::Config::new(), Selector::new(yamux::Config::new(), yamux::Config::new()));
+            let mut t1 = TransportUpgrade::new(MemoryTransport::default(), mux, sec);
+            let mut listener = t1.listen_on(listen_addr).unwrap();
+
+            loop {
+                let mut stream_muxer = listener.accept().await.unwrap();
+
+                log::info!("server accept a new connection: {:?}", stream_muxer);
+                if let Some(task) = stream_muxer.task() {
+                    task::spawn(task);
+                }
+
+                // spawn a task for handling this connection/stream-muxer
+                task::spawn(async move {
+                    loop {
+                        if let Ok(stream) = stream_muxer.accept_stream().await {
+                            log::info!("server accepted a new substream {:?}", stream);
+                            let mut stream_r = stream.clone();
+                            let mut stream_w = stream.clone();
+                            task::spawn(async move {
+                                let mut buf = [0; 4096];
+                                let n = stream_r.read2(&mut buf).await.unwrap();
+                                let _ = stream_w.write_all2(&buf[0..n]).await;
+                                Ok::<(), std::io::Error>(())
+                            });
+                        } else {
+                            log::warn!("stream_muxer {:?} closed", stream_muxer);
+                            break;
+                        }
+                    }
+                });
+            }
+        });
+
+        // Setup dialer.
         task::sleep(Duration::from_secs(1)).await;
         for i in 0..2u32 {
             log::info!("start client{}", i);
 
             let addr = t1_addr.clone();
-            task::spawn(async move {
+            let _ = task::spawn(async move {
                 let mut msg = [1, 2, 3];
                 let sec = secio::Config::new(Keypair::generate_secp256k1());
                 let mux = Selector::new(yamux::Config::new(), Selector::new(yamux::Config::new(), yamux::Config::new()));

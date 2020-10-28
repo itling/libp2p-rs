@@ -18,10 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::{
-    net::{TcpListener, TcpStream},
-    task,
-};
+// use async_std::{
+//     net::{TcpListener, TcpStream},
+//     task,
+// };
+use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use log::info;
 
 use libp2prs_traits::{copy, ReadEx, WriteEx};
@@ -46,7 +47,7 @@ fn run_server() {
             info!("accepted a socket: {:?}", socket.peer_addr());
 
             task::spawn(async move {
-                let conn = Connection::new(socket, Config::default(), Mode::Server);
+                let conn = Connection::new(TokioTcpStream::new(socket), Config::default(), Mode::Server);
                 let mut ctrl = conn.control();
 
                 task::spawn(async {
@@ -73,7 +74,7 @@ fn run_client() {
         let socket = TcpStream::connect("127.0.0.1:12345").await.unwrap();
         info!("[client] connected to server: {:?}", socket.peer_addr());
 
-        let conn = Connection::new(socket, Config::default(), Mode::Client);
+        let conn = Connection::new(TokioTcpStream::new(socket), Config::default(), Mode::Client);
         let mut ctrl = conn.control();
 
         task::spawn(async {

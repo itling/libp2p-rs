@@ -58,11 +58,11 @@ pub mod substream;
 pub use control::Control;
 pub use protocol_handler::DummyProtocolHandler;
 
-use async_std::task;
 use fnv::FnvHashMap;
 use futures::channel::{mpsc, oneshot};
 use futures::future::Either;
 use futures::prelude::*;
+use libp2prs_core::runtime::task;
 use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::time::Duration;
@@ -1047,7 +1047,7 @@ impl Swarm {
 
             // As stream_muxer is closed, we wait for its task_handle
             if let Some(h) = task_handle {
-                h.await;
+                let _ = h.await;
             }
 
             log::trace!("accept-task exiting...");
