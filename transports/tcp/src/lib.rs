@@ -28,20 +28,19 @@
 //! `core` library. See the documentation of `core` and of libp2p in general to learn how to
 //! use the `Transport` trait.
 
-//use async_std::net::{TcpListener, TcpStream};
 use async_trait::async_trait;
 use futures::prelude::*;
 use futures_timer::Delay;
-#[cfg(feature = "runtime-tokio")]
-use libp2prs_core::runtime::{io as tio, TcpListener, TcpStream};
-#[cfg(feature = "runtime-async-std")]
-use libp2prs_core::runtime::{TcpListener, TcpStream};
 use libp2prs_core::transport::{ConnectionInfo, IListener, ITransport};
 use libp2prs_core::{
     multiaddr::{protocol, protocol::Protocol, Multiaddr},
     transport::{TransportError, TransportListener},
     Transport,
 };
+#[cfg(feature = "runtime-tokio")]
+use libp2prs_runtime::{io as tio, TcpListener, TcpStream};
+#[cfg(feature = "runtime-async-std")]
+use libp2prs_runtime::{TcpListener, TcpStream};
 use log::debug;
 use socket2::{Domain, Socket, Type};
 use std::{
@@ -344,11 +343,11 @@ mod tests {
     use super::TcpConfig;
     use futures::{AsyncReadExt, AsyncWriteExt};
     use libp2prs_core::multiaddr::Multiaddr;
-    #[cfg(feature = "runtime-async-std")]
-    use libp2prs_core::runtime::task;
-    #[cfg(feature = "runtime-tokio")]
-    use libp2prs_core::runtime::{task, Runtime};
     use libp2prs_core::Transport;
+    #[cfg(feature = "runtime-async-std")]
+    use libp2prs_runtime::task;
+    #[cfg(feature = "runtime-tokio")]
+    use libp2prs_runtime::task;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::time::Duration;
     #[test]

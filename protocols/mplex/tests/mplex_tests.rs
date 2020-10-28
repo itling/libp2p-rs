@@ -18,11 +18,10 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//use async_std::task;
 use futures::channel::oneshot;
 use futures::{channel::mpsc, prelude::*};
-use libp2prs_core::runtime::task;
 use libp2prs_mplex::connection::{stream::Stream as mplex_stream, Connection};
+use libp2prs_runtime::task;
 use libp2prs_traits::{copy, ReadEx, SplitEx, WriteEx};
 use quickcheck::{QuickCheck, TestResult};
 use std::collections::VecDeque;

@@ -32,7 +32,7 @@
 //! `/dns/`, `/dns4/`, or `/dns6/` component, a DNS resolve will be performed and the component
 //! will be replaced with `/ip4/` and/or `/ip6/` components.
 
-use async_std::net::ToSocketAddrs;
+//use libp2prs_runtime::{ToSocketAddrs};
 use async_trait::async_trait;
 use libp2prs_core::transport::{IListener, ITransport};
 use libp2prs_core::{
@@ -41,6 +41,7 @@ use libp2prs_core::{
     Transport,
 };
 use log::{error, trace};
+use std::net::ToSocketAddrs;
 use std::{error, fmt, io};
 
 /// Represents the configuration for a DNS transport capability of libp2p.
@@ -107,8 +108,7 @@ where
 
         let name = name.to_string();
         let to_resolve = format!("{}:0", name);
-
-        let list = to_resolve[..].to_socket_addrs().await.map_err(|_| {
+        let list = to_resolve[..].to_socket_addrs().map_err(|_| {
             error!("DNS resolver crashed");
             TransportError::ResolveFail(name.clone())
         })?;
@@ -185,12 +185,12 @@ impl error::Error for DnsErr {
 #[cfg(test)]
 mod tests {
     use super::DnsConfig;
-    #[cfg(feature = "runtime-async-std")]
-    use libp2prs_core::runtime::task;
-    #[cfg(feature = "runtime-tokio")]
-    use libp2prs_core::runtime::task;
     use libp2prs_core::Transport;
     use libp2prs_multiaddr::Multiaddr;
+    #[cfg(feature = "runtime-async-std")]
+    use libp2prs_runtime::task;
+    #[cfg(feature = "runtime-tokio")]
+    use libp2prs_runtime::task;
     use libp2prs_tcp::TcpConfig;
     use libp2prs_traits::{ReadEx, WriteEx};
 

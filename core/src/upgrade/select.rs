@@ -91,8 +91,8 @@ where
 mod tests {
     use super::*;
     //use crate::muxing::StreamMuxer;
-    use crate::runtime::task;
     use crate::upgrade::dummy::DummyUpgrader;
+    use libp2prs_runtime::task;
 
     #[test]
     fn verify_basic() {

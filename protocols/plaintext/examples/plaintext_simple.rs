@@ -18,9 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//use async_std::task;
 use libp2prs_core::identity::Keypair;
-use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use log::{info, LevelFilter};
 
 use libp2prs_plaintext::PlainTextConfig;
@@ -43,7 +42,7 @@ fn server() {
     let config = PlainTextConfig::new(key);
 
     task::block_on(async move {
-        let listener = TcpListener::bind("127.0.0.1:1337").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:1337").await.unwrap();
 
         while let Ok((socket, _)) = listener.accept().await {
             let config = config.clone();

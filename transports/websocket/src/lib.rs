@@ -119,12 +119,12 @@ impl Transport for WsConfig {
 #[cfg(test)]
 mod tests {
     use super::WsConfig;
-    #[cfg(feature = "runtime-async-std")]
-    use libp2prs_core::runtime::task;
-    #[cfg(feature = "runtime-tokio")]
-    use libp2prs_core::runtime::task;
     use libp2prs_core::Multiaddr;
     use libp2prs_core::Transport;
+    #[cfg(feature = "runtime-async-std")]
+    use libp2prs_runtime::task;
+    #[cfg(feature = "runtime-tokio")]
+    use libp2prs_runtime::task;
     use libp2prs_traits::{ReadEx, WriteEx};
 
     #[test]

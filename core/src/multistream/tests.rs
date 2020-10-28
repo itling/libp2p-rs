@@ -25,12 +25,11 @@
 use super::negotiator::Negotiator;
 use super::{NegotiationError, ReadEx, Version, WriteEx};
 
-//use async_std::net::{TcpListener, TcpStream};
-use crate::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::channel::mpsc;
 use futures::prelude::*;
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use std::io;
 
 #[derive(Debug)]
@@ -110,7 +109,7 @@ impl WriteEx for Memory<Bytes> {
 #[test]
 fn select_proto_basic() {
     async fn run(_version: Version) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_addr = listener.local_addr().unwrap();
 
         let server = task::spawn(async move {
@@ -155,7 +154,7 @@ fn select_proto_basic() {
 #[test]
 fn no_protocol_found() {
     async fn run(_version: Version) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_addr = listener.local_addr().unwrap();
 
         let server = task::spawn(async move {
@@ -192,7 +191,7 @@ fn no_protocol_found() {
 #[test]
 fn select_proto_serial() {
     async fn run(_version: Version) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_addr = listener.local_addr().unwrap();
 
         let server = task::spawn(async move {

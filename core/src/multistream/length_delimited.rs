@@ -116,12 +116,10 @@ impl<R: ReadEx + WriteEx> LengthDelimited<R> {
 #[cfg(test)]
 mod tests {
     use super::LengthDelimited;
-    //use async_std::net::{TcpListener, TcpStream};
-    use crate::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
     use futures::{io::Cursor, prelude::*};
+    use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
     use quickcheck::*;
     use std::io::ErrorKind;
-    // use super::{ReadEx, WriteEx};
 
     #[test]
     fn basic_read() {
@@ -219,7 +217,7 @@ mod tests {
     fn writing_reading() {
         fn prop(frames: Vec<Vec<u8>>) -> TestResult {
             task::block_on(async move {
-                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
                 let listener_addr = listener.local_addr().unwrap();
 
                 let expected_frames = frames.clone();

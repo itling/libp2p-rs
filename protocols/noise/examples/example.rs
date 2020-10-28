@@ -18,9 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
 use libp2prs_core::identity;
 use libp2prs_noise::{Keypair, NoiseConfig, X25519};
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use libp2prs_traits::{ReadEx, WriteEx};
 use log::info;
 use log::LevelFilter;
@@ -39,7 +39,7 @@ fn main() {
 
 fn run_server() {
     task::block_on(async {
-        let listener = async_std::net::TcpListener::bind("127.0.0.1:3214").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:3214").await.unwrap();
 
         while let Ok((socket, _)) = listener.accept().await {
             task::spawn(async move {
@@ -50,7 +50,7 @@ fn run_server() {
 
                 let config = NoiseConfig::xx(server_dh, server_id);
 
-                let (_a, mut b) = config.handshake(socket, false).await.unwrap();
+                let (_a, mut b) = config.handshake(TokioTcpStream::new(socket), false).await.unwrap();
 
                 info!("handshake finished");
 
@@ -79,7 +79,7 @@ fn run_server() {
 
 fn run_client() {
     task::block_on(async {
-        let socket = async_std::net::TcpStream::connect("127.0.0.1:3214").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:3214").await.unwrap();
         info!("[client] connected to server: {:?}", socket.peer_addr());
 
         let client_id = identity::Keypair::generate_ed25519();
@@ -89,7 +89,7 @@ fn run_client() {
 
         let config = NoiseConfig::xx(client_dh, client_id);
 
-        let (_a, mut b) = config.handshake(socket, true).await.unwrap();
+        let (_a, mut b) = config.handshake(TokioTcpStream::new(socket), true).await.unwrap();
         info!("Handshake finished");
 
         let data = b"hello world";

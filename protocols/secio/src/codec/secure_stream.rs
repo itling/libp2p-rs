@@ -277,10 +277,9 @@ mod tests {
     use super::{Hmac, SecureStream};
     use crate::crypto::{cipher::CipherType, new_stream, CryptoMode};
     use crate::Digest;
-    // use async_std::task;
     use bytes::BytesMut;
     use futures::channel;
-    use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
+    use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
     use libp2prs_traits::{ReadEx, SplitEx, WriteEx};
 
     fn test_decode_encode(cipher: CipherType) {
@@ -339,7 +338,7 @@ mod tests {
         let (addr_sender, addr_receiver) = channel::oneshot::channel::<::std::net::SocketAddr>();
         task::block_on(async move {
             task::spawn(async move {
-                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
                 let listener_addr = listener.local_addr().unwrap();
                 let _res = addr_sender.send(listener_addr);
                 let (socket, _) = listener.accept().await.unwrap();

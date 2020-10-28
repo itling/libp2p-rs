@@ -18,11 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// use async_std::{
-//     net::{TcpListener, TcpStream},
-//     task,
-// };
-use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use libp2prs_traits::{ReadEx, WriteEx};
 use libp2prs_yamux::{connection::Connection, connection::Mode, error::ConnectionError, Config};
 use log::info;
@@ -42,7 +38,7 @@ fn main() {
 
 fn run_server() {
     task::block_on(async {
-        let listener = TcpListener::bind("127.0.0.1:8088").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:8088").await.unwrap();
         while let Ok((socket, _)) = listener.accept().await {
             task::spawn(async move {
                 let muxer_conn = Connection::new(TokioTcpStream::new(socket), Config::default(), Mode::Server);

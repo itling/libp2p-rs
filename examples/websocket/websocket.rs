@@ -18,9 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//use async_std::task;
 use async_trait::async_trait;
-use libp2prs_core::runtime::{task, Runtime};
+use libp2prs_runtime::{task, Runtime};
 use std::time::Duration;
 #[macro_use]
 extern crate lazy_static;

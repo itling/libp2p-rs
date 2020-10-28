@@ -18,9 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//use async_std::task;
 use libp2prs_core::identity::Keypair;
-use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use libp2prs_secio::Config;
 use log::info;
 
@@ -42,7 +41,7 @@ fn server() {
     let config = Config::new(key);
 
     task::block_on(async move {
-        let listener = TcpListener::bind("127.0.0.1:1337").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:1337").await.unwrap();
 
         while let Ok((socket, _)) = listener.accept().await {
             let config = config.clone();
@@ -61,16 +60,6 @@ fn server() {
 
                 info!("session closed!");
                 let _ = handle.close2().await;
-
-                // let (h1, h2) = handle.split();
-                // match async_std::io::copy(h1, h2).await {
-                //     Ok(n) => {
-                //         error!("io-copy exited @len={}", n);
-                //     }
-                //     Err(err) => {
-                //         error!("io-copy exited @{:?}", err);
-                //     }
-                // }
             });
         }
     });

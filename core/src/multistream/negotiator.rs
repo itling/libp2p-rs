@@ -23,7 +23,6 @@ use std::{fmt, io};
 // use std::sync::atomic::AtomicUsize;
 // use futures::stream::{Stream, TryStreamExt};
 // use std::sync::Arc;
-// use async_std::sync::Mutex;
 
 use super::{
     protocol::{Message, MessageIO, Protocol, ProtocolError, Version},

@@ -16,11 +16,11 @@ pub mod task {
 
 #[cfg(feature = "runtime-async-std")]
 pub mod io {
-    pub use async_std::io::timeout;
+    pub use async_std::io::{stdin, stdout, timeout};
 }
 
 #[cfg(feature = "runtime-async-std")]
-pub use async_std::net::{TcpListener, TcpStream};
+pub use async_std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 #[cfg(feature = "runtime-tokio")]
 pub mod task {
@@ -45,14 +45,14 @@ pub mod task {
 
 #[cfg(feature = "runtime-tokio")]
 pub mod io {
-    pub use tokio::io::{AsyncRead, AsyncWrite};
+    pub use tokio::io::{stdin, stdout, AsyncRead, AsyncWrite};
     //pub use tokio::io::ReadBuf;
     pub use tokio::time::timeout;
 }
 
 #[cfg(feature = "runtime-tokio")]
 pub use tokio::{
-    net::{TcpListener, TcpStream},
+    net::{TcpListener, TcpStream, ToSocketAddrs},
     runtime::Runtime,
 };
 

@@ -18,11 +18,10 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//use async_std::task;
 use futures::channel::oneshot;
 use futures::io::Error;
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use libp2prs_core::runtime::task;
+use libp2prs_runtime::task;
 use libp2prs_traits::{copy, ReadEx, SplitEx, WriteEx};
 use libp2prs_yamux::{
     connection::{stream::Stream as yamux_stream, Connection, Mode},

@@ -18,11 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// use async_std::{
-//     net::{TcpListener, TcpStream},
-//     task,
-// };
-use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use log::info;
 
 use libp2prs_traits::{copy, ReadEx, WriteEx};
@@ -41,7 +37,7 @@ fn main() {
 
 fn run_server() {
     task::block_on(async {
-        let listener = TcpListener::bind("127.0.0.1:12345").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:12345").await.unwrap();
 
         while let Ok((socket, _)) = listener.accept().await {
             info!("accepted a socket: {:?}", socket.peer_addr());

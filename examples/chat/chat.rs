@@ -18,15 +18,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//use async_std::task;
 use async_trait::async_trait;
-use libp2prs_core::runtime::{task, Runtime};
+use libp2prs_runtime::{task, Runtime};
 use std::time::Duration;
 
 #[macro_use]
 extern crate lazy_static;
 
-use async_std::io;
 use std::io::Write;
 
 use libp2prs_core::identity::Keypair;
@@ -83,7 +81,7 @@ where
         print!("> ");
         let _ = std::io::stdout().flush();
         let mut input = String::new();
-        let n = io::stdin().read_line(&mut input).await.unwrap();
+        let n = std::io::stdin().read_line(&mut input).unwrap();
         let _ = stream.write_all2(&input.as_bytes()[0..n]).await;
         let _ = stream.flush2().await;
     }

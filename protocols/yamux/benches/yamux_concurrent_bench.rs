@@ -18,10 +18,10 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use async_std::task;
 use criterion::{criterion_group, criterion_main, Criterion};
 use futures::stream::FusedStream;
 use futures::{channel::mpsc, prelude::*, ready};
+use libp2prs_runtime::task;
 use libp2prs_traits::{ReadEx, WriteEx};
 use libp2prs_yamux::{connection::Connection, connection::Mode, error::ConnectionError, Config};
 use std::collections::VecDeque;
@@ -132,7 +132,7 @@ async fn roundtrip(nstreams: usize, nmessages: usize, data: Bytes, send_all: boo
         }
 
         for handle in handles {
-            handle.await.expect("server stream task");
+            let _ = handle.await.expect("server stream task");
         }
     });
 
@@ -181,10 +181,10 @@ async fn roundtrip(nstreams: usize, nmessages: usize, data: Bytes, send_all: boo
     assert_eq!(nstreams, n);
 
     ctrl_client.close().await.expect("client close connection");
-    stream_handle_server.await;
+    let _ = stream_handle_server.await;
     // ctrl_server.close().await.expect("server close connection");
-    loop_handle_client.await;
-    loop_handle_server.await;
+    let _ = loop_handle_client.await;
+    let _ = loop_handle_server.await;
 }
 
 #[derive(Debug)]

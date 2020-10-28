@@ -38,10 +38,10 @@ use futures::prelude::*;
 use libp2prs_core::identity::Keypair;
 use libp2prs_core::multistream::Negotiator;
 use libp2prs_core::muxing::IStreamMuxer;
-use libp2prs_core::runtime::task::{self, JoinHandle};
 use libp2prs_core::transport::TransportError;
 use libp2prs_core::upgrade::ProtocolName;
 use libp2prs_core::PublicKey;
+use libp2prs_runtime::task::{self, JoinHandle};
 
 use crate::control::SwarmControlCmd;
 use crate::identify::{IdentifyInfo, IDENTIFY_PROTOCOL, IDENTIFY_PUSH_PROTOCOL};

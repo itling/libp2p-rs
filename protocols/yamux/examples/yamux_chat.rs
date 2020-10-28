@@ -18,17 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// use async_std::{
-//     net::{TcpListener, TcpStream},
-//     task,
-// };
-use libp2prs_core::runtime::{task, TcpListener, TcpStream, TokioTcpStream};
-use log::info;
-
-use async_std::io;
-use futures::AsyncWriteExt;
+use libp2prs_runtime::{task, TcpListener, TcpStream, TokioTcpStream};
 use libp2prs_traits::{ReadEx, WriteEx};
 use libp2prs_yamux::{connection::Connection, connection::Mode, Config};
+use log::info;
+use std::io::Write;
 
 async fn write_data<C>(mut stream: C)
 where
@@ -36,9 +30,9 @@ where
 {
     loop {
         print!("> ");
-        let _ = io::stdout().flush().await;
+        let _ = std::io::stdout().flush();
         let mut input = String::new();
-        let n = io::stdin().read_line(&mut input).await.unwrap();
+        let n = std::io::stdin().read_line(&mut input).unwrap();
         let _ = stream.write_all2(&input.as_bytes()[0..n]).await;
         let _ = stream.flush2().await;
     }
@@ -57,7 +51,7 @@ where
         }
         if str != "\n" {
             print!("\x1b[32m{}\x1b[0m> ", str);
-            let _ = io::stdout().flush().await;
+            let _ = std::io::stdout().flush();
         }
     }
 }
@@ -75,7 +69,7 @@ fn main() {
 
 fn run_server() {
     task::block_on(async {
-        let listener = TcpListener::bind("127.0.0.1:12345").await.unwrap();
+        let mut listener = TcpListener::bind("127.0.0.1:12345").await.unwrap();
 
         while let Ok((socket, _)) = listener.accept().await {
             info!("accepted a socket: {:?}", socket.peer_addr());

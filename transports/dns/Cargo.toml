@@ -10,10 +10,10 @@ categories = ["network-programming", "asynchronous"]
 edition = "2018"
 
 [dependencies]
+libp2prs-runtime = { path = "../../runtime", version = "0.1.0", package = "libp2prs-runtime" }
 libp2prs-core = { version = "0.1.0", path = "../../core", package = "libp2prs-core"}
 log = "0.4"
 futures = "0.3.5"
-async-std = "1.6"
 async-trait = "0.1"
 
 [dev-dependencies]
@@ -23,5 +23,5 @@ libp2prs-multiaddr = { path = "../../multiaddr", version = "0.1.0" , package = "
 
 [features]
 default = ["runtime-tokio"]
-runtime-async-std = ["libp2prs-core/runtime-async-std" ]
-runtime-tokio = ["libp2prs-core/runtime-tokio"]
+runtime-async-std = ["libp2prs-runtime/runtime-async-std" ]
+runtime-tokio = ["libp2prs-runtime/runtime-tokio"]

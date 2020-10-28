@@ -29,7 +29,7 @@ default-features = false
 [dev-dependencies]
 env_logger = "0.6"
 criterion = "0.3"
-async-std = "1.6"
+libp2prs-runtime = { path = "../../runtime", version = "0.1.0", package = "libp2prs-runtime" }
 
 [dev-dependencies.libp2prs-core]
 path = "../../core"

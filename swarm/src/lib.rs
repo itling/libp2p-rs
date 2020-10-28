@@ -62,7 +62,7 @@ use fnv::FnvHashMap;
 use futures::channel::{mpsc, oneshot};
 use futures::future::Either;
 use futures::prelude::*;
-use libp2prs_core::runtime::task;
+use libp2prs_runtime::task;
 use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::time::Duration;
