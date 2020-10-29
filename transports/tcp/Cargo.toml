@@ -25,7 +25,7 @@ env_logger = "0.6.0"
 
 [features]
 default = ["runtime-tokio"]
-runtime-async-std = ["libp2prs-core/runtime-async-std" ]
-runtime-tokio = ["libp2prs-core/runtime-tokio"]
+runtime-async-std = ["libp2prs-runtime/runtime-async-std" ]
+runtime-tokio = ["libp2prs-runtime/runtime-tokio"]
 
 
