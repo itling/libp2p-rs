@@ -24,7 +24,7 @@ use futures::{
 };
 use libp2prs_core::PeerId;
 
-use crate::connection::ConnectionId;
+use crate::connection::{Connection, ConnectionId};
 use crate::identify::IdentifyInfo;
 use crate::network::NetworkInfo;
 use crate::substream::{StreamId, Substream};
@@ -40,7 +40,9 @@ type Result<T> = std::result::Result<T, SwarmError>;
 #[allow(dead_code)]
 pub enum SwarmControlCmd {
     /// Open a connection to the remote peer.
-    NewConnection(PeerId, oneshot::Sender<Result<()>>),
+    NewConnection(PeerId, oneshot::Sender<Result<Connection>>),
+    /// cleanup  connection.
+    CleanupConnection(PeerId, ConnectionId),
     /// Close any connection to the remote peer.
     CloseConnection(PeerId, oneshot::Sender<Result<()>>),
     /// Open a new stream specified with protocol Ids to the remote peer.
@@ -81,9 +83,9 @@ impl Control {
     }
 
     /// make a connection to the remote.
-    pub async fn new_connection(&mut self, peerd_id: PeerId) -> Result<()> {
-        let (tx, rx) = oneshot::channel();
-        self.sender.send(SwarmControlCmd::NewConnection(peerd_id.clone(), tx)).await?;
+    pub async fn new_connection(&mut self, peer_id: PeerId) -> Result<Connection> {
+        let (tx, rx) = oneshot::channel::<Result<Connection>>();
+        let _ = self.sender.send(SwarmControlCmd::NewConnection(peer_id.clone(), tx)).await;
         rx.await?
     }
 

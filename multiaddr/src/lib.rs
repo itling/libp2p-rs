@@ -112,6 +112,34 @@ impl Multiaddr {
         Some(protocol)
     }
 
+    pub fn value_for_protocol(self, code: u32) -> Option<String> {
+        let components = self.iter().collect::<Vec<_>>();
+        for comp in components.iter() {
+            if comp.get_key().is_ok() && comp.get_key().unwrap() == code {
+                return Some(comp.to_string());
+            }
+        }
+        None
+    }
+
+    pub fn is_private_addr(&self) -> bool {
+        let mut is_private = false;
+        let components = self.iter().collect::<Vec<_>>();
+        for comp in components.iter() {
+            match comp {
+                protocol::Protocol::Ip4(ipv4_addr) => {
+                    is_private = ipv4_addr.is_private() || ipv4_addr.is_loopback() || ipv4_addr.is_link_local();
+                }
+                protocol::Protocol::Ip6(ipv6_addr) => {
+                    is_private = ipv6_addr.is_loopback();
+                    //TODO: unstable feature, ipv6_addr.is_unique_local()||ipv6_addr.is_unicast_link_local();
+                }
+                _ => {}
+            }
+        }
+        is_private
+    }
+
     /// Like [`Multiaddr::push`] but consumes `self`.
     pub fn with(mut self, p: Protocol<'_>) -> Self {
         let mut w = io::Cursor::<&mut Vec<u8>>::new(Arc::make_mut(&mut self.bytes));
