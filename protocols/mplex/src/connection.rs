@@ -190,7 +190,7 @@ impl Shutdown {
 ///
 /// Since each `mpsc::Sender` gets a guaranteed slot in a channel the
 /// actual upper bound is this value + number of clones.
-const MAX_COMMAND_BACKLOG: usize = 32;
+const MAX_COMMAND_BACKLOG: usize = 1000000000;
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(5);
 
 type Result<T> = std::result::Result<T, ConnectionError>;
@@ -202,12 +202,12 @@ pub struct Connection<T: SplitEx> {
     is_closed: bool,
     shutdown: Shutdown,
     next_stream_id: u32,
-    streams: IntMap<StreamID, mpsc::Sender<Vec<u8>>>,
+    streams: IntMap<StreamID, mpsc::UnboundedSender<Vec<u8>>>,
     streams_stat: IntMap<StreamID, State>,
-    stream_sender: mpsc::Sender<StreamCommand>,
-    stream_receiver: mpsc::Receiver<StreamCommand>,
-    control_sender: mpsc::Sender<ControlCommand>,
-    control_receiver: Pausable<mpsc::Receiver<ControlCommand>>,
+    stream_sender: mpsc::UnboundedSender<StreamCommand>,
+    stream_receiver: mpsc::UnboundedReceiver<StreamCommand>,
+    control_sender: mpsc::UnboundedSender<ControlCommand>,
+    control_receiver: Pausable<mpsc::UnboundedReceiver<ControlCommand>>,
     waiting_stream_sender: Option<oneshot::Sender<Result<stream::Stream>>>,
     pending_streams: VecDeque<stream::Stream>,
 }
@@ -224,8 +224,8 @@ impl<T: SplittableReadWrite> Connection<T> {
         let reader = Box::pin(reader);
 
         let writer = io::IO::new(id, writer);
-        let (stream_sender, stream_receiver) = mpsc::channel(MAX_COMMAND_BACKLOG);
-        let (control_sender, control_receiver) = mpsc::channel(MAX_COMMAND_BACKLOG);
+        let (stream_sender, stream_receiver) = mpsc::unbounded();
+        let (control_sender, control_receiver) = mpsc::unbounded();
 
         Connection {
             id,
@@ -362,7 +362,7 @@ impl<T: SplittableReadWrite> Connection<T> {
                     return Err(ConnectionError::Io(std::io::ErrorKind::InvalidData.into()));
                 }
 
-                let (stream_sender, stream_receiver) = mpsc::channel(MAX_COMMAND_BACKLOG);
+                let (stream_sender, stream_receiver) = mpsc::unbounded();
                 self.streams.insert(stream_id, stream_sender);
                 self.streams_stat.insert(stream_id, State::Open);
 
@@ -524,7 +524,7 @@ impl<T: SplittableReadWrite> Connection<T> {
                 }
 
                 let stream_id = self.next_stream_id()?;
-                let (stream_sender, stream_receiver) = mpsc::channel(MAX_COMMAND_BACKLOG);
+                let (stream_sender, stream_receiver) = mpsc::unbounded();
                 self.streams.insert(stream_id, stream_sender);
                 self.streams_stat.insert(stream_id, State::Open);
 

@@ -57,8 +57,12 @@ async-tls="0.8"
 rustls = "0.18.0"
 structopt = "0.3.9"
 async-std = "1.6"
+tokio = { version = "0.3", features = ["full"] }
 webpki = "0.21.2"
-
+futures-util="0.3.8"
+futures-timer = { version = "3.0.2" }
+md5={version="0.7.0",features = ["std"]}
+#ring = { version = "0.16.9", features = ["alloc", "std"], default-features = true }
 
 [target.'cfg(unix)'.dev-dependencies]
 nix = "0.13.0"
@@ -95,3 +99,15 @@ path = "examples/websocket/websocket.rs"
 [[example]]
 name = "websocket_tls"
 path = "examples/websocket/websocket_tls.rs"
+
+[[example]]
+name = "filetrans"
+path = "examples/filetrans/file_transfer.rs"
+
+[[example]]
+name = "async_std_tcp_filetrans"
+path = "examples/filetrans/async_std_tcp_file_transfer.rs"
+
+[[example]]
+name = "tokio_tcp_filetrans"
+path = "examples/filetrans/tokio_tcp_file_transfer.rs"

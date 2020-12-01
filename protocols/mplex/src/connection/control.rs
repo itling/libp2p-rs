@@ -29,13 +29,13 @@ use crate::{
 };
 
 pub struct Control {
-    sender: mpsc::Sender<ControlCommand>,
+    sender: mpsc::UnboundedSender<ControlCommand>,
 }
 
 type Result<T> = std::result::Result<T, ConnectionError>;
 
 impl Control {
-    pub fn new(sender: mpsc::Sender<ControlCommand>) -> Self {
+    pub fn new(sender: mpsc::UnboundedSender<ControlCommand>) -> Self {
         Control { sender }
     }
 

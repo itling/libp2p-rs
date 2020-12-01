@@ -58,8 +58,8 @@ pub struct Stream {
     id: StreamID,
     conn_id: Id,
     read_buffer: bytes::BytesMut,
-    sender: mpsc::Sender<StreamCommand>,
-    receiver: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
+    sender: mpsc::UnboundedSender<StreamCommand>,
+    receiver: Arc<Mutex<mpsc::UnboundedReceiver<Vec<u8>>>>,
 }
 
 impl fmt::Debug for Stream {
@@ -88,7 +88,12 @@ impl Clone for Stream {
 }
 
 impl Stream {
-    pub(crate) fn new(id: StreamID, conn_id: Id, sender: mpsc::Sender<StreamCommand>, receiver: mpsc::Receiver<Vec<u8>>) -> Self {
+    pub(crate) fn new(
+        id: StreamID,
+        conn_id: Id,
+        sender: mpsc::UnboundedSender<StreamCommand>,
+        receiver: mpsc::UnboundedReceiver<Vec<u8>>,
+    ) -> Self {
         Stream {
             id,
             conn_id,
