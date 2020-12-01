@@ -25,7 +25,6 @@ use async_trait::async_trait;
 extern crate lazy_static;
 
 use async_std::fs::{self, *};
-use futures::channel::{mpsc, oneshot};
 use futures_util::io::AsyncWriteExt;
 use libp2prs_core::identity::Keypair;
 use libp2prs_core::transport::upgrade::TransportUpgrade;
@@ -34,8 +33,6 @@ use std::error::Error;
 use std::sync::Arc;
 
 use futures::future::{select, Either};
-use futures::lock::Mutex;
-use futures::prelude::*;
 use futures_timer::Delay;
 use libp2prs_core::{Multiaddr, PeerId};
 use libp2prs_mplex as mplex;
@@ -139,7 +136,7 @@ impl Notifiee for FileTransHandler {}
 
 #[async_trait]
 impl ProtocolHandler for FileTransHandler {
-    async fn handle(&mut self, stream: Substream, _info: <Self as UpgradeInfo>::Info) -> Result<(), Box<dyn Error>> {
+    async fn handle(&mut self, mut stream: Substream, _info: <Self as UpgradeInfo>::Info) -> Result<(), Box<dyn Error>> {
         log::info!("[server]  FileTransHandler handling inbound {:?}", stream);
         let start = Instant::now();
         let mut buf = [0; 4096];
@@ -150,7 +147,7 @@ impl ProtocolHandler for FileTransHandler {
         while let Ok(n) = stream.read2(&mut buf[..]).await {
             r_total.fetch_add(n, Ordering::SeqCst);
             log::trace!(" [server] read data={}", n);
-            s.write_all2(&buf[0..n]).await.unwrap();
+            stream.write_all2(&buf[0..n]).await.unwrap();
         }
         rate_handler.cancel().await;
         let sec = start.elapsed().as_secs() as usize;
