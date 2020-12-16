@@ -87,10 +87,10 @@ where
         let sec = start.elapsed().as_secs() as usize;
         let data = r_total.load(Ordering::SeqCst);
         if data == last_r_total {
-            log::info!("stream:{:?} , total bytes={}, rate={}kb/s ", stream, data, 0);
+            log::info!("total bytes={}, rate={}m/s ", data, 0);
         } else {
-            let rate = (data / 1024) / sec;
-            log::info!("stream:{:?} , total bytes={}, rate={}kb/s ", stream, data, rate);
+            let rate = (data / 1024/1024) / sec;
+            log::info!(" total bytes={}, rate={}m/s ", data, rate);
         }
         last_r_total = data
     }
@@ -102,7 +102,7 @@ fn run_server(port: u32) {
         while let Ok((mut socket, _)) = listener.accept().await {
             task::spawn(async move {
                 let start = Instant::now();
-                let mut buf = [0; 40960];
+                let mut buf = [0; 4096];
                 let r_total = Arc::new(AtomicUsize::new(0));
                 let sc = socket.clone();
                 let r_total_c = r_total.clone();
@@ -117,8 +117,8 @@ fn run_server(port: u32) {
                 rate_handler.cancel().await;
                 let sec = start.elapsed().as_secs() as usize;
                 let data = r_total.load(Ordering::SeqCst);
-                let rate = (data / 1024) / sec;
-                log::info!("stream:{:?} , total bytes={}, avg rate={}kb/s ", socket, data, rate);
+                let rate = (data / 1024/1024) / sec;
+                log::info!("total bytes={}, avg rate={}m/s ", data, rate);
             })
             .await;
         }
@@ -155,7 +155,7 @@ async fn read_file_and_write_stream<C>(mut stream: C, mut file: File)
 where
     C: ReadEx + WriteEx,
 {
-    let mut buf = [0; 40960];
+    let mut buf = [0; 4096];
     let mut r_total = 0;
     while let Ok(n) = file.read2(&mut buf).await {
         if n == 0 {
@@ -175,7 +175,7 @@ where
     C: ReadEx + WriteEx,
 {
     log::info!("stream  to file begin");
-    let mut buf = [0; 40960];
+    let mut buf = [0; 4096];
     let mut w_total = 0;
     let mut r_total = 0;
     let mut rev_file = File::create(&rev_file_name).await.unwrap();

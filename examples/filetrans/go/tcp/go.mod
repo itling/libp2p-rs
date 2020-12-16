@@ -1,4 +1,4 @@
-module github.com/libp2p/tcp_file_transfer
+module github.com/libp2p/tcp_transfer
 
 require (
 	

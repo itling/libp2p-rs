@@ -81,10 +81,10 @@ fn test_file_transfer_with_mplex(port: u32) {
             run_client(v, 3, MuxType::Mplex, TransType::Tcp, port);
         });
         handles.push(handle);
-        // let handle = task::spawn(async move {
-        //     run_client(v, 3, MuxType::Mplex, TransType::Websocket, port);
-        // });
-        // handles.push(handle);
+        let handle = task::spawn(async move {
+            run_client(v, 3, MuxType::Mplex, TransType::Websocket, port);
+        });
+        handles.push(handle);
     }
 
     task::block_on(async {

@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+const PACKAGE_SIZE = 40 * 1024
+
 func main() {
 	var clientOrserver string = os.Args[1]
 	if clientOrserver == "server" {
@@ -28,20 +30,20 @@ func main() {
 		}
 
 	}else if clientOrserver == "client" {
-		fileName, fileSize := generateRandFile(40000)
+		fileName, fileSize := generateRandFile(20000)
 		s, err := net.Dial("tcp", "127.0.0.1:8080")
 		if err != nil {
 			panic(err)
 		}
 		start := time.Now()
-		revFileName := fileName + "-rev-0"
+		revFileName := fileName + "-rev"
 		var wg sync.WaitGroup
 		wg.Add(2)
-		go readFileAndWriteStream(s, fileName, &wg)
-		go readStreamAndWriteFile(s, revFileName, fileSize, &wg)
+		go readFileAndWriteStream(s, fileName,&wg)
+		go readStreamAndWriteFile(s, revFileName,fileSize, &wg)
 		wg.Wait()
 		cost := time.Now().Sub(start).Seconds()
-		log.Printf("stream=%s readwrite cost time=%ds", s, int(cost))
+		log.Printf("readwrite cost time=%ds", int(cost))
 		s.Close()
 		err = os.Remove(revFileName)
 		err = os.Remove(fileName)
@@ -52,7 +54,7 @@ func main() {
 func echo(s  net.Conn) {
 	rootContext := context.Background()
 	ctx, cancelFunc := context.WithCancel(rootContext)
-	buf := make([]byte, 40960)
+	buf := make([]byte, PACKAGE_SIZE)
 	var wTotal int = 0
 	var rTotal int = 0
 	startTime := time.Now()
@@ -62,18 +64,18 @@ func echo(s  net.Conn) {
 		if err != nil {
 			endTime := time.Now()
 			sec := endTime.Sub(startTime).Seconds()
-			rate := (rTotal / 1024) / int(sec)
-			log.Printf("stream:%s: total bytes=%d, cost=%ds, avg rate=%vkb/s ", s,rTotal,int(sec), rate)
+			rate := (rTotal / 1024/1024) / int(sec)
+			log.Printf("total bytes=%d, cost=%ds, avg rate=%vm/s ", rTotal,int(sec), rate)
 
 			cancelFunc()
-			log.Printf("stream [%s] read error:%s", s, err)
+			log.Printf(" read error:%s",  err)
 			break
 		}
 		rTotal += n
 		n, err = s.Write(buf[0:n])
 		if err != nil {
 			cancelFunc()
-			log.Printf("stream [%s] write error:%s", s, err)
+			log.Printf(" write error:%s", err)
 			break
 		}
 		wTotal += n
@@ -94,10 +96,10 @@ func printTransRate(ctx context.Context, s  net.Conn, rTotal *int, wTotal *int) 
 			endTime := time.Now()
 			sec := endTime.Sub(startTime).Seconds()
 			if lastRTotal==*rTotal{
-				log.Printf("stream:%s: total bytes=%d,  rate=%vkb/s ", s,*rTotal, 0)
+				log.Printf("total bytes=%d,  rate=%vm/s ",*rTotal, 0)
 			}else{
-				rate := (*rTotal / 1024) / int(sec)
-				log.Printf("stream:%s: total bytes=%d,  rate=%vkb/s ", s,*rTotal, rate)
+				rate := (*rTotal / 1024/1024) / int(sec)
+				log.Printf("total bytes=%d,  rate=%vm/s ",*rTotal, rate)
 			}
 			lastRTotal=*rTotal
 		}
@@ -115,7 +117,7 @@ func readFileAndWriteStream(s  net.Conn, fileName string, wg *sync.WaitGroup) {
 	defer f.Close()
 	var rTotal int = 0
 	var wTotal int = 0
-	buf := make([]byte, 40960)
+	buf := make([]byte, PACKAGE_SIZE)
 	for {
 		n, err := f.Read(buf)
 		if err != nil && err != io.EOF {
@@ -141,7 +143,7 @@ func readStreamAndWriteFile(s net.Conn, revFileName string, fileLength int, wg *
 		panic(err)
 	}
 	defer f.Close()
-	buf := make([]byte, 40960)
+	buf := make([]byte, PACKAGE_SIZE)
 	var wTotal int = 0
 	var rTotal int = 0
 	for {
